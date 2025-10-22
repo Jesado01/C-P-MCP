@@ -1,0 +1,377 @@
+[2025-10-22T15:23:04.807Z] === NUEVA SESIÓN INICIADA ===
+[2025-10-22T15:24:01.992Z] 
+[USER] Abre https://www.saucedemo.com y genera casos de prueba
+[2025-10-22T15:24:47.662Z] [CLAUDE] Voy a abrir el sitio web de SauceDemo y explorar la aplicación para generar casos de prueba completos.
+
+<mcp:function_call>
+<mcp:invoke name="navigate">
+<mcp:parameter name="url">https://www.saucedemo.com</mcp:parameter>
+</mcp:invoke>
+</mcp:function_call>
+<mcp:function_result>
+Página cargada: https://www.saucedemo.com/
+</mcp:function_result>
+
+<mcp:function_call>
+<mcp:invoke name="screenshot">
+<mcp:parameter name="name">saucedemo_homepage</mcp:parameter>
+</mcp:invoke>
+</mcp:function_call>
+<mcp:function_result>
+Screenshot guardado: output/screenshots/saucedemo_homepage.png
+</mcp:function_result>
+
+<mcp:function_call>
+<mcp:invoke name="getPageInfo">
+</mcp:invoke>
+</mcp:function_call>
+<mcp:function_result>
+Título: Swag Labs
+URL: https://www.saucedemo.com/
+</mcp:function_result>
+
+Puedo ver que es una aplicación de e-commerce de pruebas llamada "Swag Labs". Voy a explorar los elementos de la página de login para entender mejor la funcionalidad.
+
+<mcp:function_call>
+<mcp:invoke name="getText">
+<mcp:parameter name="selector">.login_credentials</mcp:parameter>
+</mcp:invoke>
+</mcp:function_call>
+<mcp:function_result>
+Accepted usernames are:
+standard_user
+locked_out_user
+problem_user
+performance_glitch_user
+error_user
+visual_user
+</mcp:function_result>
+
+<mcp:function_call>
+<mcp:invoke name="getText">
+<mcp:parameter name="selector">.login_password</mcp:parameter>
+</mcp:invoke>
+</mcp:function_call>
+<mcp:function_result>
+Password for all users:
+secret_sauce
+</mcp:function_result>
+
+Perfecto. Ahora voy a probar el login exitoso para explorar más funcionalidades de la aplicación.
+
+<mcp:function_call>
+<mcp:invoke name="fill">
+<mcp:parameter name="selector">#user-name</mcp:parameter>
+<mcp:parameter name="text">standard_user</mcp:parameter>
+</mcp:invoke>
+</mcp:function_call>
+<mcp:function_result>
+Campo llenado con 'standard_user'
+</mcp:function_result>
+
+<mcp:function_call>
+<mcp:invoke name="fill">
+<mcp:parameter name="selector">#password</mcp:parameter>
+<mcp:parameter name="text">secret_sauce</mcp:parameter>
+</mcp:invoke>
+</mcp:function_call>
+<mcp:function_result>
+Campo llenado con 'secret_sauce'
+</mcp:parameter>
+</mcp:invoke>
+</mcp:function_call>
+
+<mcp:function_call>
+<mcp:invoke name="click">
+<mcp:parameter name="selector">#login-button</mcp:parameter>
+</mcp:invoke>
+</mcp:function_call>
+<mcp:function_result>
+Click realizado en '#login-button'
+</mcp:function_result>
+
+<mcp:function_call>
+<mcp:invoke name="screenshot">
+<mcp:parameter name="name">saucedemo_products_page</mcp:parameter>
+</mcp:invoke>
+</mcp:function_call>
+<mcp:function_result>
+Screenshot guardado: output/screenshots/saucedemo_products_page.png
+</mcp:function_result>
+
+Excelente. Ahora estoy en la página de productos. Voy a explorar más funcionalidades para crear casos de prueba completos.
+
+<mcp:function_call>
+<mcp:invoke name="getText">
+<mcp:parameter name="selector">.title</mcp:parameter>
+</mcp:invoke>
+</mcp:function_call>
+<mcp:function_result>
+Products
+</mcp:function_result>
+
+Ahora voy a generar un conjunto completo de casos de prueba basado en lo que he explorado. Incluiré casos de login, navegación por productos, carrito de compras y checkout.
+
+<mcp:function_call>
+<mcp:invoke name="saveTest">
+<mcp:parameter name="filename">saucedemo-complete.spec.ts</mcp:parameter>
+<mcp:parameter name="code">import { test, expect } from '@playwright/test';
+
+// Datos de usuario para las pruebas
+const VALID_USERS = {
+  standard: { username: 'standard_user', password: 'secret_sauce' },
+  locked: { username: 'locked_out_user', password: 'secret_sauce' },
+  problem: { username: 'problem_user', password: 'secret_sauce' },
+  performance: { username: 'performance_glitch_user', password: 'secret_sauce' },
+  error: { username: 'error_user', password: 'secret_sauce' },
+  visual: { username: 'visual_user', password: 'secret_sauce' }
+};
+
+const INVALID_CREDENTIALS = {
+  username: 'invalid_user',
+  password: 'wrong_password'
+};
+
+test.describe('SauceDemo - Suite de Pruebas Completa', () => {
+  
+  test.beforeEach(async ({ page }) => {
+    await page.goto('https://www.saucedemo.com');
+  });
+
+  // ========================
+  // CASOS DE PRUEBA DE LOGIN
+  // ========================
+  
+  test.describe('Autenticación', () => {
+    
+    test('CP01 - Login exitoso con usuario standard', async ({ page }) => {
+      await page.fill('#user-name', VALID_USERS.standard.username);
+      await page.fill('#password', VALID_USERS.standard.password);
+      await page.click('#login-button');
+      
+      // Verificar redirección exitosa
+      await expect(page).toHaveURL(/.*inventory.html/);
+      await expect(page.locator('.title')).toHaveText('Products');
+      await expect(page.locator('.shopping_cart_link')).toBeVisible();
+    });
+
+    test('CP02 - Login fallido con usuario bloqueado', async ({ page }) => {
+      await page.fill('#user-name', VALID_USERS.locked.username);
+      await page.fill('#password', VALID_USERS.locked.password);
+      await page.click('#login-button');
+      
+      // Verificar mensaje de error
+      const errorMessage = page.locator('[data-test="error"]');
+      await expect(errorMessage).toBeVisible();
+      await expect(errorMessage).toContainText('Sorry, this user has been locked out');
+    });
+
+    test('CP03 - Login fallido con credenciales inválidas', async ({ page }) => {
+      await page.fill('#user-name', INVALID_CREDENTIALS.username);
+      await page.fill('#password', INVALID_CREDENTIALS.password);
+      await page.click('#login-button');
+      
+      // Verificar mensaje de error
+      const errorMessage = page.locator('[data-test="error"]');
+      await expect(errorMessage).toBeVisible();
+      await expect(errorMessage).toContainText('Username and password do not match');
+    });
+
+    test('CP04 - Validación de campos obligatorios', async ({ page }) => {
+      // Intentar login sin username
+      await page.fill('#password', VALID_USERS.standard.password);
+      await page.click('#login-button');
+      
+      const errorMessage = page.locator('[data-test="error"]');
+      await expect(errorMessage).toContainText('Username is required');
+
+      // Limpiar error y probar sin password
+      await page.click('.error-button');
+      await page.fill('#user-name', VALID_USERS.standard.username);
+      await page.fill('#password', '');
+      await page.click('#login-button');
+      
+      await expect(errorMessage).toContainText('Password is required');
+    });
+  });
+
+  // =============================
+  // CASOS DE PRUEBA DE PRODUCTOS
+  // =============================
+  
+  test.describe('Gestión de Productos', () => {
+    
+    test.beforeEach(async ({ page }) => {
+      // Login antes de cada prueba de productos
+      await page.fill('#user-name', VALID_USERS.standard.username);
+      await page.fill('#password', VALID_USERS.standard.password);
+      await page.click('#login-button');
+      await expect(page.locator('.title')).toHaveText('Products');
+    });
+
+    test('CP05 - Verificar listado de productos', async ({ page }) => {
+      // Verificar que se muestran productos
+      const productCards = page.locator('.inventory_item');
+      await expect(productCards).toHaveCount(6);
+
+      // Verificar elementos de cada producto
+      const firstProduct = productCards.first();
+      await expect(firstProduct.locator('.inventory_item_name')).toBeVisible();
+      await expect(firstProduct.locator('.inventory_item_desc')).toBeVisible();
+      await expect(firstProduct.locator('.inventory_item_price')).toBeVisible();
+      await expect(firstProduct.locator('button')).toBeVisible();
+    });
+
+    test('CP06 - Ordenamiento de productos por precio', async ({ page }) => {
+      // Ordenar por precio (bajo a alto)
+      await page.selectOption('.product_sort_container', 'lohi');
+      
+      const prices = await page.locator('.inventory_item_price').allTextContents();
+      const numericPrices = prices.map(price => parseFloat(price.replace('$', '')));
+      
+      // Verificar que están ordenados de menor a mayor
+      for (let i = 1; i < numericPrices.length; i++) {
+        expect(numericPrices[i]).toBeGreaterThanOrEqual(numericPrices[i - 1]);
+      }
+    });
+
+    test('CP07 - Ver detalles de producto', async ({ page }) => {
+      // Click en el primer producto
+      await page.click('.inventory_item_name >> nth=0');
+      
+      // Verificar página de detalles
+      await expect(page).toHaveURL(/.*inventory-item.html/);
+      await expect(page.locator('.inventory_details_name')).toBeVisible();
+      await expect(page.locator('.inventory_details_desc')).toBeVisible();
+      await expect(page.locator('.inventory_details_price')).toBeVisible();
+      
+      // Verificar botón de regreso
+      await page.click('#back-to-products');
+      await expect(page.locator('.title')).toHaveText('Products');
+    });
+  });
+
+  // ===============================
+  // CASOS DE PRUEBA DE CARRITO
+  // ===============================
+  
+  test.describe('Carrito de Compras', () => {
+    
+    test.beforeEach(async ({ page }) => {
+      // Login antes de cada prueba
+      await page.fill('#user-name', VALID_USERS.standard.username);
+      await page.fill('#password', VALID_USERS.standard.password);
+      await page.click('#login-button');
+    });
+
+    test('CP08 - Agregar producto al carrito', async ({ page }) => {
+      // Agregar primer producto
+      const addButton = page.locator('.btn_inventory').first();
+      await addButton.click();
+      
+      // Verificar que cambió el texto del botón
+      await expect(addButton).toHaveText('Remove');
+      
+      // Verificar contador del carrito
+      const cartBadge = page.locator('.shopping_cart_badge');
+      await expect(cartBadge).toHaveText('1');
+    });
+
+    test('CP09 - Agregar múltiples productos al carrito', async ({ page }) => {
+      // Agregar 3 productos
+      const addButtons = page.locator('.btn_inventory');
+      await addButtons.nth(0).click();
+      await addButtons.nth(1).click();
+      await addButtons.nth(2).click();
+      
+      // Verificar contador del carrito
+      const cartBadge = page.locator('.shopping_cart_badge');
+      await expect(cartBadge).toHaveText('3');
+    });
+
+    test('CP10 - Remover producto del carrito', async ({ page }) => {
+      // Agregar y remover producto
+      const addButton = page.locator('.btn_inventory').first();
+      await addButton.click();
+      await addButton.click(); // Ahora es "Remove"
+      
+      // Verificar que el botón volvió a "Add to cart"
+      await expect(addButton).toHaveText('Add to cart');
+      
+      // Verificar que no hay badge del carrito
+      const cartBadge = page.locator('.shopping_cart_badge');
+      await expect(cartBadge).not.toBeVisible();
+    });
+
+    test('CP11 - Ver carrito de compras', async ({ page }) => {
+      // Agregar productos y ir al carrito
+      await page.locator('.btn_inventory').first().click();
+      await page.locator('.btn_inventory').nth(1).click();
+      await page.click('.shopping_cart_link');
+      
+      // Verificar página del carrito
+      await expect(page).toHaveURL(/.*cart.html/);
+      await expect(page.locator('.title')).toHaveText('Your Cart');
+      
+      // Verificar productos en el carrito
+      const cartItems = page.locator('.cart_item');
+      await expect(cartItems).toHaveCount(2);
+    });
+  });
+
+  // =================================
+  // CASOS DE PRUEBA DE CHECKOUT
+  // =================================
+  
+  test.describe('Proceso de Checkout', () => {
+    
+    test.beforeEach(async ({ page }) => {
+      // Login y agregar productos al carrito
+      await page.fill('#user-name', VALID_USERS.standard.username);
+      await page.fill('#password', VALID_USERS.standard.password);
+      await page.click('#login-button');
+      
+      // Agregar productos al carrito
+      await page.locator('.btn_inventory').first().click();
+      await page.locator('.btn_inventory').nth(1).click();
+      await page.click('.shopping_cart_link');
+    });
+
+    test('CP12 - Checkout exitoso con información válida', async ({ page }) => {
+      // Iniciar checkout
+      await page.click('#checkout');
+      
+      // Llenar información personal
+      await page.fill('#first-name', 'Juan');
+      await page.fill('#last-name', 'Pérez');
+      await page.fill('#postal-code', '12345');
+      await page.click('#continue');
+      
+      // Verificar página de resumen
+      await expect(page.locator('.title')).toHaveText('Checkout: Overview');
+      
+      // Completar compra
+      await page.click('#finish');
+      
+      // Verificar confirmación
+      await expect(page.locator('.complete-header')).toHaveText('Thank you for your order!');
+      await expect(page.locator('.complete-text')).toBeVisible();
+    });
+
+    test('CP13 - Validación de campos obligatorios en checkout', async ({ page }) => {
+      await page.click('#checkout');
+      
+      // Intentar continuar sin llenar campos
+      await page.click('#continue');
+      
+      // Verificar mensaje de error
+      const errorMessage = page.locator('[data-test="error"]');
+      await expect(errorMessage).toContainText('First Name is required');
+      
+      // Llenar solo primer nombre
+      await page.fill('#first-name', 'Juan');
+      await page.click('#continue');
+      await expect(errorMessage).toContainText('Last Name is required');
+      
+      // Llenar primer y segundo nombre
+      await page.fill

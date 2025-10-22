@@ -1,0 +1,21 @@
+{
+  "name": "claude-playwright-mcp",
+  "version": "1.0.0",
+  "description": "Claude API + MCP + Playwright con guardado automático",
+  "main": "claude-agent.js",
+  "scripts": {
+    "start": "node claude-agent.js",
+    "clean": "rm -rf output/*"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "dotenv": "^16.4.5",
+    "fs-extra": "^11.2.0",
+    "playwright": "^1.48.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.9.1"
+  }
+}

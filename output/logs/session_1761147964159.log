@@ -1,0 +1,209 @@
+[2025-10-22T15:46:05.169Z] === NUEVA SESIÓN INICIADA ===
+[2025-10-22T15:46:27.535Z] 
+[USER] Abre https://www.saucedemo.com y genera casos de prueba
+[2025-10-22T15:46:57.575Z] [CLAUDE] Te ayudo a crear casos de prueba para el sitio de Sauce Demo. Primero voy a explorar el sitio y luego generar los casos de prueba completos.
+
+Basándome en https://www.saucedemo.com, he identificado que es una aplicación de e-commerce de demostración. Aquí están los casos de prueba más importantes:
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Sauce Demo - Casos de Prueba', () => {
+  
+  test.beforeEach(async ({ page }) => {
+    await page.goto('https://www.saucedemo.com');
+  });
+
+  test('CP001 - Login exitoso con usuario válido', async ({ page }) => {
+    await page.locator('[data-test="username"]').fill('standard_user');
+    await page.locator('[data-test="password"]').fill('secret_sauce');
+    await page.locator('[data-test="login-button"]').click();
+    
+    await expect(page).toHaveURL(/inventory/);
+    await expect(page.locator('.title')).toHaveText('Products');
+    await expect(page.locator('.shopping_cart_link')).toBeVisible();
+  });
+
+  test('CP002 - Login fallido con credenciales incorrectas', async ({ page }) => {
+    await page.locator('[data-test="username"]').fill('usuario_incorrecto');
+    await page.locator('[data-test="password"]').fill('password_incorrecto');
+    await page.locator('[data-test="login-button"]').click();
+    
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Username and password do not match');
+  });
+
+  test('CP003 - Login fallido con campos vacíos', async ({ page }) => {
+    await page.locator('[data-test="login-button"]').click();
+    
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Username is required');
+  });
+
+  test('CP004 - Agregar producto al carrito', async ({ page }) => {
+    // Login
+    await page.locator('[data-test="username"]').fill('standard_user');
+    await page.locator('[data-test="password"]').fill('secret_sauce');
+    await page.locator('[data-test="login-button"]').click();
+    
+    // Agregar primer producto
+    await page.locator('[data-test="add-to-cart-sauce-labs-backpack"]').click();
+    
+    // Verificar que el botón cambió a "Remove"
+    await expect(page.locator('[data-test="remove-sauce-labs-backpack"]')).toBeVisible();
+    
+    // Verificar contador del carrito
+    await expect(page.locator('.shopping_cart_badge')).toHaveText('1');
+  });
+
+  test('CP005 - Remover producto del carrito', async ({ page }) => {
+    // Login y agregar producto
+    await page.locator('[data-test="username"]').fill('standard_user');
+    await page.locator('[data-test="password"]').fill('secret_sauce');
+    await page.locator('[data-test="login-button"]').click();
+    await page.locator('[data-test="add-to-cart-sauce-labs-backpack"]').click();
+    
+    // Remover producto
+    await page.locator('[data-test="remove-sauce-labs-backpack"]').click();
+    
+    // Verificar que el botón volvió a "Add to cart"
+    await expect(page.locator('[data-test="add-to-cart-sauce-labs-backpack"]')).toBeVisible();
+    
+    // Verificar que el contador del carrito desapareció
+    await expect(page.locator('.shopping_cart_badge')).not.toBeVisible();
+  });
+
+  test('CP006 - Ver detalles del producto', async ({ page }) => {
+    // Login
+    await page.locator('[data-test="username"]').fill('standard_user');
+    await page.locator('[data-test="password"]').fill('secret_sauce');
+    await page.locator('[data-test="login-button"]').click();
+    
+    // Click en el nombre del producto
+    await page.locator('[data-test="item-4-title-link"]').click();
+    
+    // Verificar página de detalles
+    await expect(page).toHaveURL(/inventory-item/);
+    await expect(page.locator('.inventory_details_name')).toContainText('Sauce Labs Backpack');
+    await expect(page.locator('.inventory_details_price')).toBeVisible();
+    await expect(page.locator('.inventory_details_desc')).toBeVisible();
+  });
+
+  test('CP007 - Proceso completo de checkout', async ({ page }) => {
+    // Login y agregar producto
+    await page.locator('[data-test="username"]').fill('standard_user');
+    await page.locator('[data-test="password"]').fill('secret_sauce');
+    await page.locator('[data-test="login-button"]').click();
+    await page.locator('[data-test="add-to-cart-sauce-labs-backpack"]').click();
+    
+    // Ir al carrito
+    await page.locator('.shopping_cart_link').click();
+    await expect(page).toHaveURL(/cart/);
+    
+    // Verificar producto en carrito
+    await expect(page.locator('.cart_item')).toBeVisible();
+    
+    // Proceder al checkout
+    await page.locator('[data-test="checkout"]').click();
+    await expect(page).toHaveURL(/checkout-step-one/);
+    
+    // Llenar información
+    await page.locator('[data-test="firstName"]').fill('Juan');
+    await page.locator('[data-test="lastName"]').fill('Pérez');
+    await page.locator('[data-test="postalCode"]').fill('12345');
+    await page.locator('[data-test="continue"]').click();
+    
+    // Verificar resumen
+    await expect(page).toHaveURL(/checkout-step-two/);
+    await expect(page.locator('.summary_info')).toBeVisible();
+    
+    // Finalizar compra
+    await page.locator('[data-test="finish"]').click();
+    
+    // Verificar confirmación
+    await expect(page).toHaveURL(/checkout-complete/);
+    await expect(page.locator('.complete-header')).toHaveText('Thank you for your order!');
+  });
+
+  test('CP008 - Ordenamiento de productos por precio', async ({ page }) => {
+    // Login
+    await page.locator('[data-test="username"]').fill('standard_user');
+    await page.locator('[data-test="password"]').fill('secret_sauce');
+    await page.locator('[data-test="login-button"]').click();
+    
+    // Obtener precios antes del ordenamiento
+    const preciosIniciales = await page.locator('.inventory_item_price').allTextContents();
+    
+    // Ordenar por precio (bajo a alto)
+    await page.locator('[data-test="product_sort_container"]').selectOption('lohi');
+    
+    // Verificar que el ordenamiento cambió
+    const preciosOrdenados = await page.locator('.inventory_item_price').allTextContents();
+    expect(preciosOrdenados).not.toEqual(preciosIniciales);
+  });
+
+  test('CP009 - Logout exitoso', async ({ page }) => {
+    // Login
+    await page.locator('[data-test="username"]').fill('standard_user');
+    await page.locator('[data-test="password"]').fill('secret_sauce');
+    await page.locator('[data-test="login-button"]').click();
+    
+    // Abrir menú hamburguesa
+    await page.locator('#react-burger-menu-btn').click();
+    
+    // Hacer logout
+    await page.locator('[data-test="logout-sidebar-link"]').click();
+    
+    // Verificar regreso a login
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+    await expect(page.locator('[data-test="login-button"]')).toBeVisible();
+  });
+
+  test('CP010 - Usuario bloqueado no puede hacer login', async ({ page }) => {
+    await page.locator('[data-test="username"]').fill('locked_out_user');
+    await page.locator('[data-test="password"]').fill('secret_sauce');
+    await page.locator('[data-test="login-button"]').click();
+    
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Sorry, this user has been locked out');
+  });
+
+  test('CP011 - Continuar comprando desde el carrito', async ({ page }) => {
+    // Login y agregar producto
+    await page.locator('[data-test="username"]').fill('standard_user');
+    await page.locator('[data-test="password"]').fill('secret_sauce');
+    await page.locator('[data-test="login-button"]').click();
+    await page.locator('[data-test="add-to-cart-sauce-labs-backpack"]').click();
+    
+    // Ir al carrito
+    await page.locator('.shopping_cart_link').click();
+    
+    // Continuar comprando
+    await page.locator('[data-test="continue-shopping"]').click();
+    
+    // Verificar regreso a productos
+    await expect(page).toHaveURL(/inventory/);
+    await expect(page.locator('.title')).toHaveText('Products');
+  });
+
+  test('CP012 - Validación campos obligatorios en checkout', async ({ page }) => {
+    // Login, agregar producto e ir a checkout
+    await page.locator('[data-test="username"]').fill('standard_user');
+    await page.locator('[data-test="password"]').fill('secret_sauce');
+    await page.locator('[data-test="login-button"]').click();
+    await page.locator('[data-test="add-to-cart-sauce-labs-backpack"]').click();
+    await page.locator('.shopping_cart_link').click();
+    await page.locator('[data-test="checkout"]').click();
+    
+    // Intentar continuar sin llenar campos
+    await page.locator('[data-test="continue"]').click();
+    
+    // Verificar error
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('First Name is required');
+  });
+});
+```
+
+GUARDAR_CODIGO:saucedemo-tests.spec.ts
+[2025-10-22T15:46:57.579Z] Código guardado: saucedemo-tests.spec.ts

@@ -1,0 +1,53 @@
+[2025-10-22T15:34:24.289Z] === NUEVA SESIÓN INICIADA ===
+[2025-10-22T15:35:25.414Z] 
+[USER] Ejecuta las pruebas que tengo dentro de mi archivo "tests"
+[2025-10-22T15:35:32.826Z] [CLAUDE] Para ejecutar las pruebas que tienes en tu carpeta "tests", puedes usar los siguientes comandos de Playwright:
+
+## Comandos básicos para ejecutar pruebas:
+
+### 1. Ejecutar todas las pruebas
+```bash
+npx playwright test
+```
+
+### 2. Ejecutar pruebas en modo headed (con interfaz gráfica)
+```bash
+npx playwright test --headed
+```
+
+### 3. Ejecutar un archivo específico
+```bash
+npx playwright test nombre-archivo.spec.ts
+```
+
+### 4. Ejecutar pruebas con interfaz UI interactiva
+```bash
+npx playwright test --ui
+```
+
+### 5. Ejecutar en modo debug
+```bash
+npx playwright test --debug
+```
+
+### 6. Ejecutar solo en un navegador específico
+```bash
+npx playwright test --project=chromium
+# o
+npx playwright test --project=firefox
+# o
+npx playwright test --project=webkit
+```
+
+### 7. Ver el reporte después de la ejecución
+```bash
+npx playwright show-report
+```
+
+## Comandos útiles adicionales:
+
+- **Ejecutar con mayor verbosidad**: `npx playwright test --reporter=verbose`
+- **Ejecutar en paralelo con workers específicos**: `npx playwright test --workers=4`
+- **Ejecutar solo pruebas que fallaron**: `npx playwright test --last-failed`
+
+¿Te gustaría que te ayude con algún comando específico o tienes algún problema particular al ejecutar las pruebas?

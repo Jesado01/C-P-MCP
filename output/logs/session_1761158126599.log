@@ -1,0 +1,331 @@
+[2025-10-22T18:35:27.613Z] === NUEVA SESIÓN INICIADA ===
+[2025-10-22T18:36:05.145Z] 
+[USER] hola
+[2025-10-22T18:36:09.848Z] [CLAUDE] ¡Hola! Soy tu asistente experto en automatización de pruebas con Playwright. 
+
+Estoy aquí para ayudarte con:
+
+- **Crear pruebas automatizadas** para aplicaciones web
+- **Generar código TypeScript/JavaScript** para Playwright
+- **Optimizar selectores** y estrategias de prueba
+- **Resolver problemas** de automatización
+- **Implementar mejores prácticas** en testing
+- **Configurar proyectos** de Playwright
+
+¿En qué puedo ayudarte hoy? ¿Tienes alguna aplicación específica que necesites probar o algún escenario de prueba en mente?
+[2025-10-22T18:36:44.155Z] 
+[USER] Abre https://www.saucedemo.com y genera casos de prueba
+[2025-10-22T18:37:12.628Z] [CLAUDE] Perfecto, voy a generar casos de prueba para el sitio web SauceDemo. Este es un sitio de práctica muy popular para automatización. Crearé casos de prueba que cubran los flujos principales de la aplicación.
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+// Configuración global para todas las pruebas
+test.beforeEach(async ({ page }) => {
+  await page.goto('https://www.saucedemo.com/');
+});
+
+test.describe('SauceDemo - Casos de Prueba', () => {
+  
+  // Caso 1: Login exitoso con usuario válido
+  test('Login exitoso con credenciales válidas', async ({ page }) => {
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Verificar que se redirige a la página de productos
+    await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html');
+    await expect(page.locator('.title')).toHaveText('Products');
+    await expect(page.locator('.shopping_cart_link')).toBeVisible();
+  });
+
+  // Caso 2: Login fallido con credenciales inválidas
+  test('Login fallido con credenciales incorrectas', async ({ page }) => {
+    await page.fill('#user-name', 'usuario_incorrecto');
+    await page.fill('#password', 'password_incorrecto');
+    await page.click('#login-button');
+    
+    // Verificar mensaje de error
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Username and password do not match');
+    
+    // Verificar que permanece en la página de login
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+  });
+
+  // Caso 3: Login con usuario bloqueado
+  test('Login con usuario bloqueado', async ({ page }) => {
+    await page.fill('#user-name', 'locked_out_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Verificar mensaje de error específico para usuario bloqueado
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Sorry, this user has been locked out');
+  });
+
+  // Caso 4: Validar campos vacíos
+  test('Validar campos de login vacíos', async ({ page }) => {
+    await page.click('#login-button');
+    
+    // Verificar mensaje de error para campos vacíos
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Username is required');
+  });
+
+  // Caso 5: Flujo completo de compra
+  test('Flujo completo de compra de producto', async ({ page }) => {
+    // Login
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Agregar producto al carrito
+    await page.click('#add-to-cart-sauce-labs-backpack');
+    await expect(page.locator('.shopping_cart_badge')).toHaveText('1');
+    
+    // Ir al carrito
+    await page.click('.shopping_cart_link');
+    await expect(page).toHaveURL('https://www.saucedemo.com/cart.html');
+    
+    // Verificar producto en carrito
+    await expect(page.locator('.cart_item')).toBeVisible();
+    await expect(page.locator('.inventory_item_name')).toContainText('Sauce Labs Backpack');
+    
+    // Proceder al checkout
+    await page.click('#checkout');
+    
+    // Llenar información del checkout
+    await page.fill('#first-name', 'Juan');
+    await page.fill('#last-name', 'Pérez');
+    await page.fill('#postal-code', '12345');
+    await page.click('#continue');
+    
+    // Finalizar compra
+    await page.click('#finish');
+    
+    // Verificar confirmación de compra
+    await expect(page.locator('.complete-header')).toHaveText('Thank you for your order!');
+    await expect(page.locator('.complete-text')).toContainText('Your order has been dispatched');
+  });
+
+  // Caso 6: Agregar múltiples productos al carrito
+  test('Agregar múltiples productos al carrito', async ({ page }) => {
+    // Login
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Agregar varios productos
+    await page.click('#add-to-cart-sauce-labs-backpack');
+    await page.click('#add-to-cart-sauce-labs-bike-light');
+    await page.click('#add-to-cart-sauce-labs-bolt-t-shirt');
+    
+    // Verificar contador del carrito
+    await expect(page.locator('.shopping_cart_badge')).toHaveText('3');
+    
+    // Verificar productos en el carrito
+    await page.click('.shopping_cart_link');
+    const cartItems = page.locator('.cart_item');
+    await expect(cartItems).toHaveCount(3);
+  });
+
+  // Caso 7: Remover producto del carrito
+  test('Remover producto del carrito', async ({ page }) => {
+    // Login y agregar producto
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    await page.click('#add-to-cart-sauce-labs-backpack');
+    await page.click('.shopping_cart_link');
+    
+    // Remover producto
+    await page.click('#remove-sauce-labs-backpack');
+    
+    // Verificar que el carrito esté vacío
+    await expect(page.locator('.cart_item')).toHaveCount(0);
+    await expect(page.locator('.shopping_cart_badge')).not.toBeVisible();
+  });
+
+  // Caso 8: Filtrar productos por precio
+  test('Filtrar productos por precio (menor a mayor)', async ({ page }) => {
+    // Login
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Aplicar filtro de precio
+    await page.selectOption('.product_sort_container', 'lohi');
+    
+    // Verificar que los productos estén ordenados por precio
+    const prices = await page.locator('.inventory_item_price').allTextContents();
+    const numericPrices = prices.map(price => parseFloat(price.replace('$', '')));
+    
+    // Verificar orden ascendente
+    for (let i = 0; i < numericPrices.length - 1; i++) {
+      expect(numericPrices[i]).toBeLessThanOrEqual(numericPrices[i + 1]);
+    }
+  });
+
+  // Caso 9: Logout exitoso
+  test('Logout exitoso desde la página de productos', async ({ page }) => {
+    // Login
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Abrir menú hamburguesa y hacer logout
+    await page.click('#react-burger-menu-btn');
+    await page.click('#logout_sidebar_link');
+    
+    // Verificar redirección a página de login
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+    await expect(page.locator('#login-button')).toBeVisible();
+  });
+
+  // Caso 10: Validar información del producto
+  test('Validar detalles del producto individual', async ({ page }) => {
+    // Login
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Hacer clic en un producto específico
+    await page.click('#item_4_title_link');
+    
+    // Verificar detalles del producto
+    await expect(page).toHaveURL(/.*inventory-item.html\?id=4/);
+    await expect(page.locator('.inventory_details_name')).toBeVisible();
+    await expect(page.locator('.inventory_details_desc')).toBeVisible();
+    await expect(page.locator('.inventory_details_price')).toBeVisible();
+    await expect(page.locator('.inventory_details_img')).toBeVisible();
+    
+    // Verificar botón "Back to products"
+    await page.click('#back-to-products');
+    await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html');
+  });
+
+});
+```
+
+GUARDAR_CODIGO:saucedemo-tests.spec.ts
+[2025-10-22T18:37:12.633Z] Código guardado: saucedemo-tests.spec.ts
+[2025-10-22T18:38:19.286Z] 
+[USER] como los ejecuto
+[2025-10-22T18:38:32.551Z] [CLAUDE] ¡Excelente! Te explico cómo ejecutar las pruebas de Playwright paso a paso:
+
+## 1. Instalación inicial (si no tienes Playwright instalado)
+
+```bash
+# Crear un nuevo proyecto (opcional)
+npm init -y
+
+# Instalar Playwright
+npm init playwright@latest
+```
+
+## 2. Si ya tienes Playwright configurado
+
+```bash
+# Instalar dependencias si es necesario
+npm install
+```
+
+## 3. Ejecutar las pruebas
+
+### Ejecutar todas las pruebas:
+```bash
+npx playwright test
+```
+
+### Ejecutar el archivo específico que creamos:
+```bash
+npx playwright test saucedemo-tests.spec.ts
+```
+
+### Ejecutar con interfaz gráfica (recomendado para ver las pruebas):
+```bash
+npx playwright test --ui
+```
+
+### Ejecutar con el navegador visible:
+```bash
+npx playwright test --headed
+```
+
+### Ejecutar una prueba específica:
+```bash
+npx playwright test -g "Login exitoso con credenciales válidas"
+```
+
+### Ejecutar en modo debug:
+```bash
+npx playwright test --debug
+```
+
+## 4. Ver reportes
+
+### Ver el último reporte:
+```bash
+npx playwright show-report
+```
+
+## 5. Comandos útiles adicionales
+
+### Ejecutar solo pruebas fallidas:
+```bash
+npx playwright test --last-failed
+```
+
+### Ejecutar en paralelo con más workers:
+```bash
+npx playwright test --workers=4
+```
+
+### Ejecutar en un navegador específico:
+```bash
+npx playwright test --project=chromium
+npx playwright test --project=firefox
+npx playwright test --project=webkit
+```
+
+## 6. Configuración recomendada
+
+Si necesitas ajustar la configuración, edita el archivo `playwright.config.ts`:
+
+```typescript
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests',
+  timeout: 30000,
+  expect: {
+    timeout: 5000
+  },
+  retries: 2,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: 'html',
+  use: {
+    headless: false, // Para ver el navegador
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure'
+  }
+});
+```
+
+## 7. Primer comando recomendado
+
+Para empezar, te sugiero ejecutar:
+
+```bash
+npx playwright test saucedemo-tests.spec.ts --headed --reporter=line
+```
+
+Este comando:
+- Ejecuta solo nuestro archivo de pruebas
+- Muestra el navegador (`--headed`)
+- Usa un reporte simple en línea (`--reporter=line`)
+
+¿Te gustaría que te ayude con alguna configuración específica o tienes algún error al ejecutar las pruebas?
+[2025-10-22T18:38:32.560Z] Código guardado: generated_test_1761158126599_1.spec.ts

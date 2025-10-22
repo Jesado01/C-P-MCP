@@ -1,0 +1,192 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('SauceDemo - Casos de Prueba', () => {
+  
+  test.beforeEach(async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+  });
+
+  test('Verificar elementos de la página de login', async ({ page }) => {
+    // Verificar que la página carga correctamente
+    await expect(page).toHaveTitle('Swag Labs');
+    
+    // Verificar elementos del formulario de login
+    await expect(page.locator('#user-name')).toBeVisible();
+    await expect(page.locator('#password')).toBeVisible();
+    await expect(page.locator('#login-button')).toBeVisible();
+    
+    // Verificar placeholders
+    await expect(page.locator('#user-name')).toHaveAttribute('placeholder', 'Username');
+    await expect(page.locator('#password')).toHaveAttribute('placeholder', 'Password');
+  });
+
+  test('Login exitoso con usuario estándar', async ({ page }) => {
+    // Realizar login con credenciales válidas
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Verificar que el login fue exitoso
+    await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html');
+    await expect(page.locator('.title')).toContainText('Products');
+    await expect(page.locator('.shopping_cart_link')).toBeVisible();
+  });
+
+  test('Login fallido con credenciales incorrectas', async ({ page }) => {
+    // Intentar login con credenciales incorrectas
+    await page.fill('#user-name', 'usuario_incorrecto');
+    await page.fill('#password', 'password_incorrecta');
+    await page.click('#login-button');
+    
+    // Verificar mensaje de error
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Username and password do not match');
+  });
+
+  test('Login fallido con campos vacíos', async ({ page }) => {
+    // Hacer clic en login sin llenar campos
+    await page.click('#login-button');
+    
+    // Verificar mensaje de error
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Username is required');
+  });
+
+  test('Login con usuario bloqueado', async ({ page }) => {
+    // Intentar login con usuario bloqueado
+    await page.fill('#user-name', 'locked_out_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Verificar mensaje de error
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Sorry, this user has been locked out');
+  });
+
+  test('Navegación y funcionalidad del inventario', async ({ page }) => {
+    // Login exitoso
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Verificar que hay productos en el inventario
+    await expect(page.locator('.inventory_item')).toHaveCount(6);
+    
+    // Verificar filtros de ordenamiento
+    await expect(page.locator('.product_sort_container')).toBeVisible();
+    
+    // Probar ordenamiento por precio (bajo a alto)
+    await page.selectOption('.product_sort_container', 'lohi');
+    
+    // Verificar que el primer producto es el más barato
+    const firstProductPrice = await page.locator('.inventory_item:first-child .inventory_item_price').textContent();
+    expect(firstProductPrice).toContain('$7.99');
+  });
+
+  test('Agregar producto al carrito', async ({ page }) => {
+    // Login exitoso
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Agregar primer producto al carrito
+    await page.click('.inventory_item:first-child .btn_inventory');
+    
+    // Verificar que el contador del carrito se actualiza
+    await expect(page.locator('.shopping_cart_badge')).toContainText('1');
+    
+    // Verificar que el botón cambió a "Remove"
+    await expect(page.locator('.inventory_item:first-child .btn_inventory')).toContainText('Remove');
+  });
+
+  test('Ver detalles del producto', async ({ page }) => {
+    // Login exitoso
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Hacer clic en el nombre del primer producto
+    await page.click('.inventory_item:first-child .inventory_item_name');
+    
+    // Verificar que estamos en la página de detalles
+    await expect(page).toHaveURL(/.*inventory-item.html/);
+    await expect(page.locator('.inventory_details_name')).toBeVisible();
+    await expect(page.locator('.inventory_details_price')).toBeVisible();
+    await expect(page.locator('.btn_inventory')).toBeVisible();
+  });
+
+  test('Proceso completo de compra', async ({ page }) => {
+    // Login exitoso
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Agregar productos al carrito
+    await page.click('.inventory_item:first-child .btn_inventory');
+    await page.click('.inventory_item:nth-child(2) .btn_inventory');
+    
+    // Ir al carrito
+    await page.click('.shopping_cart_link');
+    await expect(page).toHaveURL('https://www.saucedemo.com/cart.html');
+    
+    // Verificar productos en el carrito
+    await expect(page.locator('.cart_item')).toHaveCount(2);
+    
+    // Proceder al checkout
+    await page.click('#checkout');
+    await expect(page).toHaveURL('https://www.saucedemo.com/checkout-step-one.html');
+    
+    // Llenar información del checkout
+    await page.fill('#first-name', 'Juan');
+    await page.fill('#last-name', 'Pérez');
+    await page.fill('#postal-code', '12345');
+    await page.click('#continue');
+    
+    // Verificar página de resumen
+    await expect(page).toHaveURL('https://www.saucedemo.com/checkout-step-two.html');
+    await expect(page.locator('.summary_info')).toBeVisible();
+    
+    // Finalizar compra
+    await page.click('#finish');
+    await expect(page).toHaveURL('https://www.saucedemo.com/checkout-complete.html');
+    await expect(page.locator('.complete-header')).toContainText('Thank you for your order!');
+  });
+
+  test('Logout exitoso', async ({ page }) => {
+    // Login exitoso
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Abrir menú hamburguesa
+    await page.click('#react-burger-menu-btn');
+    
+    // Hacer logout
+    await page.click('#logout_sidebar_link');
+    
+    // Verificar que regresamos a la página de login
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+    await expect(page.locator('#login-button')).toBeVisible();
+  });
+
+  test('Remover producto del carrito', async ({ page }) => {
+    // Login exitoso
+    await page.fill('#user-name', 'standard_user');
+    await page.fill('#password', 'secret_sauce');
+    await page.click('#login-button');
+    
+    // Agregar producto al carrito
+    await page.click('.inventory_item:first-child .btn_inventory');
+    await expect(page.locator('.shopping_cart_badge')).toContainText('1');
+    
+    // Remover producto del carrito
+    await page.click('.inventory_item:first-child .btn_inventory');
+    
+    // Verificar que el contador desaparece
+    await expect(page.locator('.shopping_cart_badge')).not.toBeVisible();
+    
+    // Verificar que el botón vuelve a "Add to cart"
+    await expect(page.locator('.inventory_item:first-child .btn_inventory')).toContainText('Add to cart');
+  });
+
+});

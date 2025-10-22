@@ -1,0 +1,14 @@
+{
+  "sessionId": 1761147263278,
+  "timestamp": "2025-10-22T15:35:32.838Z",
+  "history": [
+    {
+      "role": "user",
+      "content": "Ejecuta las pruebas que tengo dentro de mi archivo \"tests\""
+    },
+    {
+      "role": "assistant",
+      "content": "Para ejecutar las pruebas que tienes en tu carpeta \"tests\", puedes usar los siguientes comandos de Playwright:\n\n## Comandos básicos para ejecutar pruebas:\n\n### 1. Ejecutar todas las pruebas\n```bash\nnpx playwright test\n```\n\n### 2. Ejecutar pruebas en modo headed (con interfaz gráfica)\n```bash\nnpx playwright test --headed\n```\n\n### 3. Ejecutar un archivo específico\n```bash\nnpx playwright test nombre-archivo.spec.ts\n```\n\n### 4. Ejecutar pruebas con interfaz UI interactiva\n```bash\nnpx playwright test --ui\n```\n\n### 5. Ejecutar en modo debug\n```bash\nnpx playwright test --debug\n```\n\n### 6. Ejecutar solo en un navegador específico\n```bash\nnpx playwright test --project=chromium\n# o\nnpx playwright test --project=firefox\n# o\nnpx playwright test --project=webkit\n```\n\n### 7. Ver el reporte después de la ejecución\n```bash\nnpx playwright show-report\n```\n\n## Comandos útiles adicionales:\n\n- **Ejecutar con mayor verbosidad**: `npx playwright test --reporter=verbose`\n- **Ejecutar en paralelo con workers específicos**: `npx playwright test --workers=4`\n- **Ejecutar solo pruebas que fallaron**: `npx playwright test --last-failed`\n\n¿Te gustaría que te ayude con algún comando específico o tienes algún problema particular al ejecutar las pruebas?"
+    }
+  ]
+}

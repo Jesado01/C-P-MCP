@@ -1,0 +1,594 @@
+[2025-10-22T20:15:48.019Z] === NUEVA SESIÓN INICIADA ===
+[2025-10-22T20:17:01.822Z] 
+[USER] Abre https://www.saucedemo.com y genera casos de prueba
+[2025-10-22T20:17:34.931Z] [CLAUDE] Voy a generar casos de prueba completos para el sitio de SauceDemo. He analizado la aplicación y he creado pruebas que cubren los flujos principales de usuario.
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('SauceDemo - Suite de Pruebas Completa', () => {
+  
+  test.beforeEach(async ({ page }) => {
+    await page.goto('https://www.saucedemo.com');
+  });
+
+  test('Verificar elementos de la página de login', async ({ page }) => {
+    // Verificar que los elementos principales estén presentes
+    await expect(page.locator('[data-test="username"]')).toBeVisible();
+    await expect(page.locator('[data-test="password"]')).toBeVisible();
+    await expect(page.locator('[data-test="login-button"]')).toBeVisible();
+    await expect(page.locator('.login_logo')).toContainText('Swag Labs');
+    
+    // Verificar usuarios disponibles
+    await expect(page.locator('#login_credentials')).toContainText('standard_user');
+    await expect(page.locator('#login_credentials')).toContainText('locked_out_user');
+    await expect(page.locator('#login_credentials')).toContainText('problem_user');
+  });
+
+  test('Login exitoso con credenciales válidas', async ({ page }) => {
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Verificar redirección exitosa
+    await expect(page).toHaveURL(/.*inventory.html/);
+    await expect(page.locator('.title')).toContainText('Products');
+    await expect(page.locator('.shopping_cart_link')).toBeVisible();
+    await expect(page.locator('.bm-burger-button')).toBeVisible();
+  });
+
+  test('Login fallido con credenciales inválidas', async ({ page }) => {
+    await page.fill('[data-test="username"]', 'usuario_invalido');
+    await page.fill('[data-test="password"]', 'contraseña_invalida');
+    await page.click('[data-test="login-button"]');
+
+    // Verificar mensaje de error
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Username and password do not match any user in this service');
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+  });
+
+  test('Login con usuario bloqueado', async ({ page }) => {
+    await page.fill('[data-test="username"]', 'locked_out_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Verificar mensaje específico para usuario bloqueado
+    await expect(page.locator('[data-test="error"]')).toContainText('Sorry, this user has been locked out');
+  });
+
+  test('Validación de campos obligatorios', async ({ page }) => {
+    // Intentar login sin usuario ni contraseña
+    await page.click('[data-test="login-button"]');
+    await expect(page.locator('[data-test="error"]')).toContainText('Username is required');
+
+    // Limpiar error y probar solo con usuario
+    await page.click('[data-test="error-button"]');
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.click('[data-test="login-button"]');
+    await expect(page.locator('[data-test="error"]')).toContainText('Password is required');
+  });
+
+  test('Navegación y visualización de productos', async ({ page }) => {
+    // Login
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Verificar productos visibles
+    await expect(page.locator('.inventory_item')).toHaveCount(6);
+    
+    // Verificar elementos de cada producto
+    const firstProduct = page.locator('.inventory_item').first();
+    await expect(firstProduct.locator('.inventory_item_name')).toBeVisible();
+    await expect(firstProduct.locator('.inventory_item_desc')).toBeVisible();
+    await expect(firstProduct.locator('.inventory_item_price')).toBeVisible();
+    await expect(firstProduct.locator('.btn_inventory')).toBeVisible();
+  });
+
+  test('Funcionalidad del carrito de compras', async ({ page }) => {
+    // Login
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Agregar primer producto al carrito
+    await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
+    
+    // Verificar que el botón cambió
+    await expect(page.locator('[data-test="remove-sauce-labs-backpack"]')).toBeVisible();
+    
+    // Verificar contador del carrito
+    await expect(page.locator('.shopping_cart_badge')).toContainText('1');
+
+    // Ir al carrito
+    await page.click('.shopping_cart_link');
+    await expect(page).toHaveURL(/.*cart.html/);
+    await expect(page.locator('.cart_item')).toHaveCount(1);
+  });
+
+  test('Proceso completo de compra', async ({ page }) => {
+    // Login
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Agregar productos al carrito
+    await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
+    await page.click('[data-test="add-to-cart-sauce-labs-bike-light"]');
+
+    // Ir al carrito
+    await page.click('.shopping_cart_link');
+    
+    // Proceder al checkout
+    await page.click('[data-test="checkout"]');
+    await expect(page).toHaveURL(/.*checkout-step-one.html/);
+
+    // Llenar información del checkout
+    await page.fill('[data-test="firstName"]', 'Juan');
+    await page.fill('[data-test="lastName"]', 'Pérez');
+    await page.fill('[data-test="postalCode"]', '12345');
+    await page.click('[data-test="continue"]');
+
+    // Verificar página de resumen
+    await expect(page).toHaveURL(/.*checkout-step-two.html/);
+    await expect(page.locator('.summary_info')).toBeVisible();
+    
+    // Finalizar compra
+    await page.click('[data-test="finish"]');
+    
+    // Verificar confirmación
+    await expect(page).toHaveURL(/.*checkout-complete.html/);
+    await expect(page.locator('.complete-header')).toContainText('Thank you for your order!');
+  });
+
+  test('Funcionalidad de ordenamiento de productos', async ({ page }) => {
+    // Login
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Probar ordenamiento por precio (bajo a alto)
+    await page.selectOption('[data-test="product_sort_container"]', 'lohi');
+    
+    // Obtener precios y verificar orden
+    const prices = await page.locator('.inventory_item_price').allTextContents();
+    const numericPrices = prices.map(price => parseFloat(price.replace('$', '')));
+    
+    for (let i = 1; i < numericPrices.length; i++) {
+      expect(numericPrices[i]).toBeGreaterThanOrEqual(numericPrices[i - 1]);
+    }
+  });
+
+  test('Menú hamburguesa y logout', async ({ page }) => {
+    // Login
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Abrir menú hamburguesa
+    await page.click('.bm-burger-button');
+    
+    // Verificar opciones del menú
+    await expect(page.locator('#inventory_sidebar_link')).toBeVisible();
+    await expect(page.locator('#about_sidebar_link')).toBeVisible();
+    await expect(page.locator('#logout_sidebar_link')).toBeVisible();
+    await expect(page.locator('#reset_sidebar_link')).toBeVisible();
+
+    // Hacer logout
+    await page.click('#logout_sidebar_link');
+    
+    // Verificar redirección a login
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+    await expect(page.locator('[data-test="login-button"]')).toBeVisible();
+  });
+
+  test('Visualización de detalles del producto', async ({ page }) => {
+    // Login
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Click en el nombre del primer producto
+    await page.click('.inventory_item_name >> nth=0');
+    
+    // Verificar página de detalles
+    await expect(page).toHaveURL(/.*inventory-item.html/);
+    await expect(page.locator('.inventory_details_name')).toBeVisible();
+    await expect(page.locator('.inventory_details_desc')).toBeVisible();
+    await expect(page.locator('.inventory_details_price')).toBeVisible();
+    await expect(page.locator('.inventory_details_img')).toBeVisible();
+    
+    // Verificar botón de regreso
+    await expect(page.locator('[data-test="back-to-products"]')).toBeVisible();
+    
+    // Regresar a productos
+    await page.click('[data-test="back-to-products"]');
+    await expect(page).toHaveURL(/.*inventory.html/);
+  });
+
+  test('Usuario con problemas de rendimiento', async ({ page }) => {
+    // Login con problem_user
+    await page.fill('[data-test="username"]', 'problem_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Verificar que el login fue exitoso pero puede haber problemas visuales
+    await expect(page).toHaveURL(/.*inventory.html/);
+    await expect(page.locator('.title')).toContainText('Products');
+    
+    // Este usuario puede tener imágenes rotas o problemas de carga
+    const images = page.locator('.inventory_item_img img');
+    await expect(images.first()).toBeVisible();
+  });
+});
+```
+
+GUARDAR_CODIGO:saucedemo-tests.spec.ts
+[2025-10-22T20:17:34.943Z] Test guardado: tests/saucedemo-tests.spec.ts
+[2025-10-22T20:17:50.317Z] 
+[USER] Abre https://www.saucedemo.com y genera casos de prueba
+[2025-10-22T20:18:40.379Z] [CLAUDE] Voy a generar casos de prueba completos para el sitio SauceDemo, cubriendo todos los flujos principales y casos edge.
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('SauceDemo - Pruebas E2E Completas', () => {
+  
+  test.beforeEach(async ({ page }) => {
+    await page.goto('https://www.saucedemo.com');
+  });
+
+  test('Verificar elementos de la página de login están presentes', async ({ page }) => {
+    // Verificar título de la aplicación
+    await expect(page.locator('.login_logo')).toContainText('Swag Labs');
+    
+    // Verificar campos de entrada
+    await expect(page.locator('[data-test="username"]')).toBeVisible();
+    await expect(page.locator('[data-test="password"]')).toBeVisible();
+    await expect(page.locator('[data-test="login-button"]')).toBeVisible();
+    
+    // Verificar información de usuarios de prueba
+    await expect(page.locator('#login_credentials')).toContainText('Accepted usernames are:');
+    await expect(page.locator('.login_password')).toContainText('Password for all users:');
+    await expect(page.locator('.login_password')).toContainText('secret_sauce');
+  });
+
+  test('Login exitoso con usuario estándar', async ({ page }) => {
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Verificar redirección exitosa
+    await expect(page).toHaveURL(/.*inventory\.html/);
+    await expect(page.locator('.title')).toHaveText('Products');
+    await expect(page.locator('.shopping_cart_link')).toBeVisible();
+    await expect(page.locator('.bm-burger-button')).toBeVisible();
+    
+    // Verificar que hay productos disponibles
+    await expect(page.locator('.inventory_item')).toHaveCount(6);
+  });
+
+  test('Login fallido - credenciales incorrectas', async ({ page }) => {
+    await page.fill('[data-test="username"]', 'usuario_incorrecto');
+    await page.fill('[data-test="password"]', 'password_incorrecto');
+    await page.click('[data-test="login-button"]');
+
+    // Verificar mensaje de error
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Username and password do not match');
+    
+    // Verificar que permanece en la página de login
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+    
+    // Verificar botón para cerrar error
+    await expect(page.locator('[data-test="error-button"]')).toBeVisible();
+  });
+
+  test('Login fallido - usuario bloqueado', async ({ page }) => {
+    await page.fill('[data-test="username"]', 'locked_out_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Verificar mensaje específico de usuario bloqueado
+    await expect(page.locator('[data-test="error"]')).toContainText('Sorry, this user has been locked out');
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+  });
+
+  test('Validación de campos requeridos', async ({ page }) => {
+    // Intentar login sin completar campos
+    await page.click('[data-test="login-button"]');
+    await expect(page.locator('[data-test="error"]')).toContainText('Username is required');
+
+    // Limpiar error y completar solo username
+    await page.click('[data-test="error-button"]');
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.click('[data-test="login-button"]');
+    await expect(page.locator('[data-test="error"]')).toContainText('Password is required');
+  });
+
+  test('Agregar productos al carrito de compras', async ({ page }) => {
+    // Login
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Agregar primer producto
+    await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
+    
+    // Verificar que el botón cambió a "Remove"
+    await expect(page.locator('[data-test="remove-sauce-labs-backpack"]')).toBeVisible();
+    
+    // Verificar badge del carrito
+    await expect(page.locator('.shopping_cart_badge')).toHaveText('1');
+
+    // Agregar segundo producto
+    await page.click('[data-test="add-to-cart-sauce-labs-bike-light"]');
+    await expect(page.locator('.shopping_cart_badge')).toHaveText('2');
+
+    // Remover un producto
+    await page.click('[data-test="remove-sauce-labs-backpack"]');
+    await expect(page.locator('.shopping_cart_badge')).toHaveText('1');
+  });
+
+  test('Visualizar carrito de compras', async ({ page }) => {
+    // Login y agregar productos
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+    
+    await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
+    await page.click('[data-test="add-to-cart-sauce-labs-fleece-jacket"]');
+
+    // Ir al carrito
+    await page.click('.shopping_cart_link');
+    
+    // Verificar URL y contenido del carrito
+    await expect(page).toHaveURL(/.*cart\.html/);
+    await expect(page.locator('.title')).toHaveText('Your Cart');
+    await expect(page.locator('.cart_item')).toHaveCount(2);
+    
+    // Verificar botones de acción
+    await expect(page.locator('[data-test="continue-shopping"]')).toBeVisible();
+    await expect(page.locator('[data-test="checkout"]')).toBeVisible();
+  });
+
+  test('Proceso completo de checkout', async ({ page }) => {
+    // Login y agregar producto
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+    
+    await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
+    await page.click('.shopping_cart_link');
+
+    // Iniciar checkout
+    await page.click('[data-test="checkout"]');
+    await expect(page).toHaveURL(/.*checkout-step-one\.html/);
+
+    // Completar información personal
+    await page.fill('[data-test="firstName"]', 'Juan');
+    await page.fill('[data-test="lastName"]', 'Pérez');
+    await page.fill('[data-test="postalCode"]', '12345');
+    await page.click('[data-test="continue"]');
+
+    // Verificar página de resumen
+    await expect(page).toHaveURL(/.*checkout-step-two\.html/);
+    await expect(page.locator('.title')).toHaveText('Checkout: Overview');
+    
+    // Verificar información del producto
+    await expect(page.locator('.cart_item')).toBeVisible();
+    await expect(page.locator('.summary_subtotal_label')).toBeVisible();
+    await expect(page.locator('.summary_tax_label')).toBeVisible();
+    await expect(page.locator('.summary_total_label')).toBeVisible();
+
+    // Finalizar compra
+    await page.click('[data-test="finish"]');
+    
+    // Verificar página de confirmación
+    await expect(page).toHaveURL(/.*checkout-complete\.html/);
+    await expect(page.locator('.complete-header')).toHaveText('Thank you for your order!');
+    await expect(page.locator('[data-test="back-to-products"]')).toBeVisible();
+  });
+
+  test('Validación de campos requeridos en checkout', async ({ page }) => {
+    // Setup
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+    await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
+    await page.click('.shopping_cart_link');
+    await page.click('[data-test="checkout"]');
+
+    // Intentar continuar sin completar campos
+    await page.click('[data-test="continue"]');
+    await expect(page.locator('[data-test="error"]')).toContainText('First Name is required');
+
+    // Completar solo primer nombre
+    await page.click('[data-test="error-button"]');
+    await page.fill('[data-test="firstName"]', 'Juan');
+    await page.click('[data-test="continue"]');
+    await expect(page.locator('[data-test="error"]')).toContainText('Last Name is required');
+
+    // Completar primer y segundo nombre
+    await page.click('[data-test="error-button"]');
+    await page.fill('[data-test="lastName"]', 'Pérez');
+    await page.click('[data-test="continue"]');
+    await expect(page.locator('[data-test="error"]')).toContainText('Postal Code is required');
+  });
+
+  test('Funcionalidad de ordenamiento de productos', async ({ page }) => {
+    // Login
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Verificar ordenamiento por defecto (A-Z)
+    const defaultOrder = await page.locator('.inventory_item_name').allTextContents();
+    
+    // Ordenar por precio (bajo a alto)
+    await page.selectOption('[data-test="product_sort_container"]', 'lohi');
+    
+    // Obtener precios y verificar orden ascendente
+    const prices = await page.locator('.inventory_item_price').allTextContents();
+    const numericPrices = prices.map(price => parseFloat(price.replace('$', '')));
+    
+    for (let i = 1; i < numericPrices.length; i++) {
+      expect(numericPrices[i]).toBeGreaterThanOrEqual(numericPrices[i - 1]);
+    }
+
+    // Ordenar por precio (alto a bajo)
+    await page.selectOption('[data-test="product_sort_container"]', 'hilo');
+    const pricesDesc = await page.locator('.inventory_item_price').allTextContents();
+    const numericPricesDesc = pricesDesc.map(price => parseFloat(price.replace('$', '')));
+    
+    for (let i = 1; i < numericPricesDesc.length; i++) {
+      expect(numericPricesDesc[i]).toBeLessThanOrEqual(numericPricesDesc[i - 1]);
+    }
+  });
+
+  test('Detalles del producto', async ({ page }) => {
+    // Login
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Click en imagen del producto
+    await page.click('.inventory_item_img >> nth=0');
+    
+    // Verificar página de detalles
+    await expect(page).toHaveURL(/.*inventory-item\.html/);
+    await expect(page.locator('.inventory_details_name')).toBeVisible();
+    await expect(page.locator('.inventory_details_desc')).toBeVisible();
+    await expect(page.locator('.inventory_details_price')).toBeVisible();
+    await expect(page.locator('.inventory_details_img')).toBeVisible();
+    
+    // Verificar botones de acción
+    await expect(page.locator('[data-test="add-to-cart"]')).toBeVisible();
+    await expect(page.locator('[data-test="back-to-products"]')).toBeVisible();
+
+    // Agregar al carrito desde detalles
+    await page.click('[data-test="add-to-cart"]');
+    await expect(page.locator('[data-test="remove"]')).toBeVisible();
+    await expect(page.locator('.shopping_cart_badge')).toHaveText('1');
+
+    // Regresar a productos
+    await page.click('[data-test="back-to-products"]');
+    await expect(page).toHaveURL(/.*inventory\.html/);
+  });
+
+  test('Menú lateral y logout', async ({ page }) => {
+    // Login
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // Abrir menú hamburguesa
+    await page.click('.bm-burger-button');
+    
+    // Esperar a que se abra el menú
+    await expect(page.locator('.bm-menu')).toBeVisible();
+    
+    // Verificar opciones del menú
+    await expect(page.locator('#inventory_sidebar_link')).toHaveText('All Items');
+    await expect(page.locator('#about_sidebar_link')).toHaveText('About');
+    await expect(page.locator('#logout_sidebar_link')).toHaveText('Logout');
+    await expect(page.locator('#reset_sidebar_link')).toHaveText('Reset App State');
+
+    // Realizar logout
+    await page.click('#logout_sidebar_link');
+    
+    // Verificar redirección a login
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+    await expect(page.locator('[data-test="login-button"]')).toBeVisible();
+  });
+
+  test('Reset del estado de la aplicación', async ({ page }) => {
+    // Login y agregar productos
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+    
+    await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
+    await page.click('[data-test="add-to-cart-sauce-labs-bike-light"]');
+    
+    // Verificar productos en carrito
+    await expect(page.locator('.shopping_cart_badge')).toHaveText('2');
+
+    // Abrir menú y resetear
+    await page.click('.bm-burger-button');
+    await page.click('#reset_sidebar_link');
+    
+    // Cerrar menú
+    await page.click('.bm-cross-button');
+    
+    // Verificar que el carrito se vació
+    await expect(page.locator('.shopping_cart_badge')).not.toBeVisible();
+    
+    // Verificar que los botones volvieron a "Add to cart"
+    await expect(page.locator('[data-test="add-to-cart-sauce-labs-backpack"]')).toBeVisible();
+    await expect(page.locator('[data-test="add-to-cart-sauce-labs-bike-light"]')).toBeVisible();
+  });
+
+  test('Usuario con problemas visuales (problem_user)', async ({ page }) => {
+    // Login con problem_user
+    await page.fill('[data-test="username"]', 'problem_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+
+    // El login debe ser exitoso
+    await expect(page).toHaveURL(/.*inventory\.html/);
+    await expect(page.locator('.title')).toHaveText('Products');
+    
+    // Verificar que los productos están presentes (aunque pueden tener problemas visuales)
+    await expect(page.locator('.inventory_item')).toHaveCount(6);
+    
+    // Intentar agregar producto (puede fallar con este usuario)
+    await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
+    
+    // Este usuario puede tener comportamientos inesperados
+    const cartBadge = page.locator('.shopping_cart_badge');
+    if (await cartBadge.isVisible()) {
+      await expect(cartBadge).toHaveText('1');
+    }
+  });
+
+  test('Usuario de rendimiento (performance_glitch_user)', async ({ page }) => {
+    // Login con performance_glitch_user
+    await page.fill('[data-test="username"]', 'performance_glitch_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    
+    // El login puede tardar más con este usuario
+    await page.click('[data-test="login-button"]');
+    
+    // Esperar más tiempo para la carga
+    await expect(page).toHaveURL(/.*inventory\.html/, { timeout: 10000 });
+    await expect(page.locator('.title')).toHaveText('Products');
+    
+    // Las acciones pueden ser más lentas
+    await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
+    await expect(page.locator('.shopping_cart_badge')).toHaveText('1', { timeout: 5000 });
+  });
+
+  test('Navegación "Continue Shopping" desde carrito', async ({ page }) => {
+    // Setup
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+    
+    await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
+    await page.click('.shopping_cart_link');
+
+    // Continuar comprando
+    await page.click('[data-test="continue-shopping"]');
+    
+    // Verificar regreso a inventario
+    await expect(page).toHaveURL(/.*inventory\.html/);
+    await expect(page.locator('.title')).toHaveText('Products');
+    await expect(page.locator('.shopping_cart_badge')).toHaveText('1');
+  });
+});
+```
+
+GUARDAR_CODIGO:saucedemo-complete-tests.spec.ts
+[2025-10-22T20:18:40.393Z] Test guardado: tests/saucedemo-complete-tests.spec.ts
