@@ -15,12 +15,22 @@ import os
 
 BASE_URL = "http://localhost:8000"
 
-# Check if .env file exists
-env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+# Check if .env file exists in project root
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+env_path = os.path.join(project_root, '.env')
+
+print(f"Project root: {project_root}")
+print(f"Looking for .env at: {env_path}")
+
 if not os.path.exists(env_path):
     print("⚠️  WARNING: .env file not found in project root!")
     print(f"   Expected location: {env_path}")
     print("   The agent may fail to start without ANTHROPIC_API_KEY")
+    print("   Please create .env file in project root with ANTHROPIC_API_KEY=...")
+    print()
+else:
+    print("✓ .env file found!")
     print()
 
 def test_api():
@@ -85,12 +95,19 @@ def test_api():
             f"{BASE_URL}/api/agent/message",
             json={"message": test_message}
         )
+        print(f"   HTTP Status: {response.status_code}")
         result = response.json()
-        print(f"   ✓ Status: {result['status']}")
-        print(f"   Message: {result['message']}")
-        print(f"   Note: Check WebSocket for agent's response")
+        print(f"   Response: {result}")
+
+        if 'status' in result:
+            print(f"   ✓ Status: {result['status']}")
+            print(f"   Message: {result.get('message', 'N/A')}")
+            print(f"   Note: Check WebSocket for agent's response")
+        else:
+            print(f"   ✗ Unexpected response format: {result}")
     except Exception as e:
         print(f"   ✗ Error: {e}")
+        print(f"   Response text: {response.text if 'response' in locals() else 'No response'}")
 
     # Wait a bit for response
     print("   Waiting 5 seconds for agent to process...")
