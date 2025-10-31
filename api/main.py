@@ -119,7 +119,20 @@ class AgentManager:
     async def send_message(self, message: str):
         """Envía un mensaje al agente"""
         if not self.is_running or not self.process:
-            raise HTTPException(status_code=400, detail="Agent not running")
+            return {
+                "status": "error",
+                "message": "Agent not running",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        # Check if process is still alive
+        if self.process.poll() is not None:
+            self.is_running = False
+            return {
+                "status": "error",
+                "message": f"Agent process died unexpectedly (exit code: {self.process.poll()})",
+                "timestamp": datetime.now().isoformat()
+            }
 
         try:
             # Enviar mensaje al agente en formato JSON
@@ -135,8 +148,19 @@ class AgentManager:
                 "message": "Message sent to agent",
                 "timestamp": datetime.now().isoformat()
             }
+        except BrokenPipeError:
+            self.is_running = False
+            return {
+                "status": "error",
+                "message": "Agent process crashed (broken pipe)",
+                "timestamp": datetime.now().isoformat()
+            }
         except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            return {
+                "status": "error",
+                "message": f"Failed to send message: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
     
     async def stop(self):
         """Detiene el agente"""
@@ -145,33 +169,48 @@ class AgentManager:
 
         try:
             if self.process:
-                # Enviar comando de salida en formato JSON
-                exit_message = json.dumps({"type": "exit"})
-                self.process.stdin.write(exit_message + '\n')
-                self.process.stdin.flush()
+                # Try to send exit command gracefully
+                try:
+                    exit_message = json.dumps({"type": "exit"})
+                    self.process.stdin.write(exit_message + '\n')
+                    self.process.stdin.flush()
+                except (BrokenPipeError, OSError):
+                    # Process already dead, that's ok
+                    pass
 
                 # Esperar un momento para que termine gracefully
                 await asyncio.sleep(1)
 
+                # If still running, terminate forcefully
                 if self.process.poll() is None:
                     self.process.terminate()
+                    await asyncio.sleep(0.5)
+
+                # If STILL running, kill it
+                if self.process.poll() is None:
+                    self.process.kill()
 
                 self.process = None
 
             self.is_running = False
-            
+
             await self.broadcast({
                 "type": "agent_stopped",
                 "content": "Agent has been stopped",
                 "timestamp": datetime.now().isoformat()
             })
-            
+
             return {
                 "status": "stopped",
                 "message": "Agent stopped successfully"
             }
         except Exception as e:
-            return {"status": "error", "message": str(e)}
+            self.is_running = False
+            self.process = None
+            return {
+                "status": "stopped",
+                "message": f"Agent stopped with errors: {str(e)}"
+            }
     
     async def broadcast(self, message: dict):
         """Envía un mensaje a todos los clientes conectados"""
