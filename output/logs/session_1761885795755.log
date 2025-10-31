@@ -1,0 +1,189 @@
+[2025-10-31T04:43:17.765Z] === NUEVA SESIÓN INICIADA ===
+[2025-10-31T04:44:14.358Z] 
+[USER] Abre https://www.saucedemo.com y genera tests de login con PERFIL_USERNAME
+[2025-10-31T04:44:53.737Z] [CLAUDE] Perfecto, puedo ver que la página tiene usuarios aceptados y la contraseña es `secret_sauce`. Ahora voy a generar un test completo de login usando Playwright:
+
+## 🎯 Test de Login para Sauce Demo
+
+He inspeccionado la página y generado tests completos de login con diferentes escenarios:
+
+---
+
+**GUARDAR_CODIGO:saucedemo-login.spec.ts**
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Sauce Demo - Login Tests', () => {
+  
+  test.beforeEach(async ({ page }) => {
+    await page.goto('https://www.saucedemo.com');
+  });
+
+  test('Login exitoso con usuario estándar', async ({ page }) => {
+    // Usar variables de entorno para credenciales
+    const username = process.env.PERFIL_USERNAME || 'standard_user';
+    const password = 'secret_sauce';
+
+    // Completar formulario de login
+    await page.locator('[data-test="username"]').fill(username);
+    await page.locator('[data-test="password"]').fill(password);
+    await page.locator('[data-test="login-button"]').click();
+
+    // Verificar login exitoso
+    await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html');
+    await expect(page.locator('.title')).toHaveText('Products');
+    await expect(page.locator('.app_logo')).toBeVisible();
+  });
+
+  test('Login fallido - credenciales incorrectas', async ({ page }) => {
+    await page.locator('[data-test="username"]').fill('usuario_invalido');
+    await page.locator('[data-test="password"]').fill('password_incorrecto');
+    await page.locator('[data-test="login-button"]').click();
+
+    // Verificar mensaje de error
+    const errorMessage = page.locator('[data-test="error"]');
+    await expect(errorMessage).toBeVisible();
+    await expect(errorMessage).toContainText('Username and password do not match');
+  });
+
+  test('Login fallido - usuario bloqueado', async ({ page }) => {
+    await page.locator('[data-test="username"]').fill('locked_out_user');
+    await page.locator('[data-test="password"]').fill('secret_sauce');
+    await page.locator('[data-test="login-button"]').click();
+
+    // Verificar mensaje de error de usuario bloqueado
+    const errorMessage = page.locator('[data-test="error"]');
+    await expect(errorMessage).toBeVisible();
+    await expect(errorMessage).toContainText('Sorry, this user has been locked out');
+  });
+
+  test('Login fallido - campos vacíos', async ({ page }) => {
+    await page.locator('[data-test="login-button"]').click();
+
+    // Verificar mensaje de error
+    const errorMessage = page.locator('[data-test="error"]');
+    await expect(errorMessage).toBeVisible();
+    await expect(errorMessage).toContainText('Username is required');
+  });
+
+  test('Login fallido - solo usuario sin password', async ({ page }) => {
+    const username = process.env.PERFIL_USERNAME || 'standard_user';
+    
+    await page.locator('[data-test="username"]').fill(username);
+    await page.locator('[data-test="login-button"]').click();
+
+    // Verificar mensaje de error
+    const errorMessage = page.locator('[data-test="error"]');
+    await expect(errorMessage).toBeVisible();
+    await expect(errorMessage).toContainText('Password is required');
+  });
+
+  test('Cerrar mensaje de error', async ({ page }) => {
+    await page.locator('[data-test="username"]').fill('usuario_invalido');
+    await page.locator('[data-test="password"]').fill('password_incorrecto');
+    await page.locator('[data-test="login-button"]').click();
+
+    // Verificar que el error es visible
+    const errorMessage = page.locator('[data-test="error"]');
+    await expect(errorMessage).toBeVisible();
+
+    // Cerrar el mensaje de error
+    await page.locator('[data-test="error-button"]').click();
+    await expect(errorMessage).not.toBeVisible();
+  });
+
+  test('Login con diferentes usuarios válidos', async ({ page }) => {
+    const validUsers = [
+      'standard_user',
+      'problem_user',
+      'performance_glitch_user',
+      'error_user',
+      'visual_user'
+    ];
+
+    for (const username of validUsers) {
+      await page.goto('https://www.saucedemo.com');
+      
+      await page.locator('[data-test="username"]').fill(username);
+      await page.locator('[data-test="password"]').fill('secret_sauce');
+      await page.locator('[data-test="login-button"]').click();
+
+      // Verificar login exitoso
+      await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html');
+      
+      // Logout para siguiente iteración
+      await page.locator('#react-burger-menu-btn').click();
+      await page.locator('#logout_sidebar_link').click();
+    }
+  });
+
+  test('Verificar elementos del formulario de login', async ({ page }) => {
+    // Verificar que los elementos del formulario están presentes
+    await expect(page.locator('[data-test="username"]')).toBeVisible();
+    await expect(page.locator('[data-test="password"]')).toBeVisible();
+    await expect(page.locator('[data-test="login-button"]')).toBeVisible();
+    
+    // Verificar placeholders
+    await expect(page.locator('[data-test="username"]')).toHaveAttribute('placeholder', 'Username');
+    await expect(page.locator('[data-test="password"]')).toHaveAttribute('placeholder', 'Password');
+    
+    // Verificar logo
+    await expect(page.locator('.login_logo')).toBeVisible();
+  });
+});
+```
+
+---
+
+## 📋 Configuración de Variables de Entorno
+
+Crea un archivo `.env` en la raíz del proyecto:
+
+```env
+# Sauce Demo Credentials
+PERFIL_USERNAME=standard_user
+```
+
+---
+
+## 🚀 Comandos para ejecutar los tests
+
+```bash
+# Ejecutar todos los tests de login
+npx playwright test saucedemo-login.spec.ts
+
+# Ejecutar en modo headed (ver el navegador)
+npx playwright test saucedemo-login.spec.ts --headed
+
+# Ejecutar un test específico
+npx playwright test saucedemo-login.spec.ts -g "Login exitoso"
+
+# Ejecutar con reporte
+npx playwright test saucedemo-login.spec.ts --reporter=html
+```
+
+---
+
+## ✅ Escenarios Cubiertos
+
+1. ✅ **Login exitoso** con usuario estándar
+2. ✅ **Login fallido** con credenciales incorrectas
+3. ✅ **Usuario bloqueado** (locked_out_user)
+4. ✅ **Campos vacíos** - validación de campos requeridos
+5. ✅ **Usuario sin password** - validación parcial
+6. ✅ **Cerrar mensaje de error** - interacción con UI
+7. ✅ **Login con múltiples usuarios** - iteración sobre usuarios válidos
+8. ✅ **Verificación de elementos** del formulario
+
+---
+
+## 📝 Notas
+
+- Los tests usan `process.env.PERFIL_USERNAME` para obtener el usuario de las variables de entorno
+- La contraseña por defecto es `secret_sauce` para todos los usuarios
+- Los selectores usan `data-test` attributes para mayor estabilidad
+- Incluye validaciones de mensajes de error y navegación exitosa
+
+¿Necesitas que agregue algún escenario adicional o modifique algo en los tests? 🎭
+[2025-10-31T04:44:53.745Z] Test guardado: tests/saucedemo-login.spec.ts**

@@ -1,0 +1,143 @@
+[2025-10-31T02:52:29.796Z] === NUEVA SESIÓN INICIADA ===
+[2025-10-31T02:54:15.785Z] 
+[USER] Abre https://www.mitelcel.com/mitelcel/login  y genera pruebas todas las pruebas necesarias usando PERFIL TELEFONO.
+[2025-10-31T02:54:41.415Z] [CLAUDE] ¡Perfecto! Voy a generar las pruebas necesarias para https://www.mitelcel.com/mitelcel/login usando el **PERFIL TELÉFONO**.
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Mitelcel Login - Perfil Teléfono', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('https://www.mitelcel.com/mitelcel/login');
+  });
+
+  test('debe cargar la página de login correctamente', async ({ page }) => {
+    await expect(page).toHaveTitle(/login|iniciar|sesión/i);
+    await expect(page.locator('input[type="tel"], input[name*="telefono"], input[name*="phone"]')).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toBeVisible();
+    await expect(page.locator('button[type="submit"], input[type="submit"]')).toBeVisible();
+  });
+
+  test('debe iniciar sesión exitosamente con teléfono válido', async ({ page }) => {
+    // Llenar formulario con credenciales del PERFIL TELÉFONO
+    await page.fill('input[type="tel"], input[name*="telefono"], input[name*="phone"]', process.env.PROFILE_PHONE_NUMERO!);
+    await page.fill('input[type="password"]', process.env.PROFILE_PHONE_PASSWORD!);
+    
+    // Hacer click en iniciar sesión
+    await page.click('button[type="submit"], input[type="submit"]');
+    
+    // Verificar redirección exitosa
+    await expect(page).toHaveURL(/dashboard|home|inicio|cuenta/i);
+    await expect(page.locator('text=/bienvenido|hola|mi cuenta/i')).toBeVisible();
+  });
+
+  test('debe mostrar error con teléfono vacío', async ({ page }) => {
+    await page.fill('input[type="password"]', process.env.PROFILE_PHONE_PASSWORD!);
+    await page.click('button[type="submit"], input[type="submit"]');
+    
+    await expect(page.locator('text=/requerido|obligatorio|teléfono|campo/i')).toBeVisible();
+  });
+
+  test('debe mostrar error con contraseña vacía', async ({ page }) => {
+    await page.fill('input[type="tel"], input[name*="telefono"], input[name*="phone"]', process.env.PROFILE_PHONE_NUMERO!);
+    await page.click('button[type="submit"], input[type="submit"]');
+    
+    await expect(page.locator('text=/requerido|obligatorio|contraseña|password/i')).toBeVisible();
+  });
+
+  test('debe mostrar error con teléfono inválido', async ({ page }) => {
+    await page.fill('input[type="tel"], input[name*="telefono"], input[name*="phone"]', '123456789');
+    await page.fill('input[type="password"]', process.env.PROFILE_PHONE_PASSWORD!);
+    await page.click('button[type="submit"], input[type="submit"]');
+    
+    await expect(page.locator('text=/inválido|incorrecto|formato|teléfono/i')).toBeVisible();
+  });
+
+  test('debe mostrar error con contraseña incorrecta', async ({ page }) => {
+    await page.fill('input[type="tel"], input[name*="telefono"], input[name*="phone"]', process.env.PROFILE_PHONE_NUMERO!);
+    await page.fill('input[type="password"]', 'contraseñaIncorrecta123');
+    await page.click('button[type="submit"], input[type="submit"]');
+    
+    await expect(page.locator('text=/incorrecta|inválida|error|credenciales/i')).toBeVisible();
+  });
+
+  test('debe permitir mostrar/ocultar contraseña', async ({ page }) => {
+    const passwordInput = page.locator('input[type="password"]');
+    const toggleButton = page.locator('button[aria-label*="mostrar"], button[aria-label*="ocultar"], .password-toggle, [data-testid="password-toggle"]');
+    
+    await page.fill('input[type="password"]', process.env.PROFILE_PHONE_PASSWORD!);
+    
+    if (await toggleButton.isVisible()) {
+      await toggleButton.click();
+      await expect(passwordInput).toHaveAttribute('type', 'text');
+      
+      await toggleButton.click();
+      await expect(passwordInput).toHaveAttribute('type', 'password');
+    }
+  });
+
+  test('debe navegar a "¿Olvidaste tu contraseña?"', async ({ page }) => {
+    const forgotPasswordLink = page.locator('a[href*="forgot"], a[href*="recuperar"], text=/olvidaste|recuperar/i');
+    
+    if (await forgotPasswordLink.isVisible()) {
+      await forgotPasswordLink.click();
+      await expect(page).toHaveURL(/forgot|recuperar|password/i);
+    }
+  });
+
+  test('debe tener campos de formulario accesibles', async ({ page }) => {
+    const phoneInput = page.locator('input[type="tel"], input[name*="telefono"], input[name*="phone"]');
+    const passwordInput = page.locator('input[type="password"]');
+    
+    // Verificar que los campos tienen labels o placeholders
+    await expect(phoneInput).toHaveAttribute('placeholder');
+    await expect(passwordInput).toHaveAttribute('placeholder');
+    
+    // Verificar que los campos son focuseables
+    await phoneInput.focus();
+    await expect(phoneInput).toBeFocused();
+    
+    await passwordInput.focus();
+    await expect(passwordInput).toBeFocused();
+  });
+
+  test('debe funcionar la navegación con teclado', async ({ page }) => {
+    // Navegar con Tab
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    
+    // Llenar con teclado
+    await page.keyboard.type(process.env.PROFILE_PHONE_NUMERO!);
+    await page.keyboard.press('Tab');
+    await page.keyboard.type(process.env.PROFILE_PHONE_PASSWORD!);
+    
+    // Enviar con Enter
+    await page.keyboard.press('Enter');
+    
+    await expect(page).toHaveURL(/dashboard|home|inicio|cuenta/i);
+  });
+});
+```
+
+**GUARDAR_CODIGO:** mitelcel-login-telefono.spec.ts
+
+## 📋 RESUMEN DE PRUEBAS GENERADAS:
+
+✅ **Pruebas Funcionales:**
+- ✨ Carga correcta de la página
+- 🔐 Login exitoso con PERFIL TELÉFONO
+- ❌ Validaciones de campos vacíos
+- 🚫 Validaciones de datos inválidos
+
+✅ **Pruebas de UI/UX:**
+- 👁️ Mostrar/ocultar contraseña
+- 🔗 Navegación a recuperar contraseña
+- ♿ Accesibilidad de formularios
+- ⌨️ Navegación con teclado
+
+Las pruebas usan **ÚNICAMENTE** las variables del PERFIL TELÉFONO:
+- `process.env.PROFILE_PHONE_NUMERO` (6561745290)
+- `process.env.PROFILE_PHONE_PASSWORD` (Adolfo06)
+
+¿Necesitas alguna prueba adicional específica o modificaciones en alguna de estas?
+[2025-10-31T02:54:41.419Z] Test guardado: tests/**

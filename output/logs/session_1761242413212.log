@@ -1,0 +1,291 @@
+[2025-10-23T18:00:14.232Z] === NUEVA SESIÓN INICIADA ===
+[2025-10-23T18:27:32.190Z] 
+[USER] Abre https://www.saucedemo.com/ y genera pruebas usando el PERFIL TELÉFONO
+[2025-10-23T18:27:51.677Z] [CLAUDE] Voy a generar pruebas para https://www.saucedemo.com/ usando el **PERFIL TELÉFONO**.
+
+Primero, déjame analizar la página para crear pruebas completas:
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('SauceDemo - Login con Teléfono', () => {
+  test('debe iniciar sesión exitosamente con credenciales de teléfono', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Verificar que estamos en la página de login
+    await expect(page).toHaveTitle('Swag Labs');
+    await expect(page.locator('[data-test="login-button"]')).toBeVisible();
+    
+    // Usar PROFILE_PHONE_* para login
+    await page.fill('[data-test="username"]', process.env.PROFILE_PHONE_NUMERO!);
+    await page.fill('[data-test="password"]', process.env.PROFILE_PHONE_PASSWORD!);
+    await page.click('[data-test="login-button"]');
+    
+    // Verificar login exitoso
+    await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html');
+    await expect(page.locator('.title')).toHaveText('Products');
+  });
+
+  test('debe mostrar error con credenciales incorrectas', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Usar número de teléfono correcto pero password incorrecto
+    await page.fill('[data-test="username"]', process.env.PROFILE_PHONE_NUMERO!);
+    await page.fill('[data-test="password"]', 'password_incorrecto');
+    await page.click('[data-test="login-button"]');
+    
+    // Verificar mensaje de error
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Epic sadface');
+  });
+
+  test('debe validar campos vacíos', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Intentar login sin credenciales
+    await page.click('[data-test="login-button"]');
+    
+    // Verificar mensaje de error para username requerido
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Username is required');
+  });
+
+  test('debe poder navegar por el inventario después del login', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Login con perfil teléfono
+    await page.fill('[data-test="username"]', process.env.PROFILE_PHONE_NUMERO!);
+    await page.fill('[data-test="password"]', process.env.PROFILE_PHONE_PASSWORD!);
+    await page.click('[data-test="login-button"]');
+    
+    // Verificar que llegamos al inventario
+    await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html');
+    
+    // Verificar productos visibles
+    await expect(page.locator('.inventory_item')).toHaveCount(6);
+    
+    // Verificar que podemos agregar productos al carrito
+    await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
+    await expect(page.locator('.shopping_cart_badge')).toHaveText('1');
+  });
+
+  test('debe poder hacer logout correctamente', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Login con perfil teléfono
+    await page.fill('[data-test="username"]', process.env.PROFILE_PHONE_NUMERO!);
+    await page.fill('[data-test="password"]', process.env.PROFILE_PHONE_PASSWORD!);
+    await page.click('[data-test="login-button"]');
+    
+    // Verificar login exitoso
+    await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html');
+    
+    // Abrir menú hamburguesa y hacer logout
+    await page.click('#react-burger-menu-btn');
+    await page.click('[data-test="logout-sidebar-link"]');
+    
+    // Verificar que regresamos al login
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+    await expect(page.locator('[data-test="login-button"]')).toBeVisible();
+  });
+});
+```
+
+GUARDAR_CODIGO:saucedemo-login-telefono.spec.ts
+
+**📱 Pruebas generadas usando PERFIL TELÉFONO:**
+
+✅ **Funcionalidades cubiertas:**
+- Login exitoso con `PROFILE_PHONE_NUMERO` y `PROFILE_PHONE_PASSWORD`
+- Validación de credenciales incorrectas
+- Validación de campos vacíos
+- Navegación por inventario después del login
+- Proceso de logout completo
+
+🔒 **Variables de entorno utilizadas:**
+- `process.env.PROFILE_PHONE_NUMERO!` (5551234567)
+- `process.env.PROFILE_PHONE_PASSWORD!` (PassTelefono123)
+
+⚠️ **Nota importante:** Para que funcione con SauceDemo, necesitarás usar credenciales válidas como `standard_user` o `problem_user`. Las pruebas están estructuradas para usar las variables del perfil teléfono, pero SauceDemo tiene sus propios usuarios predefinidos.
+
+¿Te gustaría que ajuste las pruebas para usar credenciales específicas de SauceDemo o prefieres mantener la estructura con variables de entorno?
+[2025-10-23T18:27:51.681Z] Test guardado: tests/saucedemo-login-telefono.spec.ts
+[2025-10-23T18:29:09.160Z] 
+[USER] usa credenciales específicas de SauceDemo
+[2025-10-23T18:29:37.452Z] [CLAUDE] Perfecto, voy a generar pruebas para SauceDemo usando **credenciales específicas** pero manteniendo el **PERFIL TELÉFONO** como estructura:
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('SauceDemo - Pruebas con Perfil Teléfono', () => {
+  test('debe iniciar sesión exitosamente con standard_user', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Verificar que estamos en la página de login
+    await expect(page).toHaveTitle('Swag Labs');
+    await expect(page.locator('[data-test="login-button"]')).toBeVisible();
+    
+    // Login con credenciales válidas de SauceDemo
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+    
+    // Verificar login exitoso
+    await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html');
+    await expect(page.locator('.title')).toHaveText('Products');
+    await expect(page.locator('.inventory_item')).toHaveCount(6);
+  });
+
+  test('debe manejar usuario con problemas (problem_user)', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Login con problem_user (simula problemas de rendimiento)
+    await page.fill('[data-test="username"]', 'problem_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+    
+    // Verificar que el login funciona pero puede tener problemas visuales
+    await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html');
+    await expect(page.locator('.title')).toHaveText('Products');
+  });
+
+  test('debe rechazar usuario bloqueado (locked_out_user)', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Intentar login con usuario bloqueado
+    await page.fill('[data-test="username"]', 'locked_out_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+    
+    // Verificar mensaje de error específico
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Epic sadface: Sorry, this user has been locked out.');
+  });
+
+  test('debe mostrar error con credenciales incorrectas', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Usar credenciales incorrectas
+    await page.fill('[data-test="username"]', 'usuario_inexistente');
+    await page.fill('[data-test="password"]', 'password_incorrecto');
+    await page.click('[data-test="login-button"]');
+    
+    // Verificar mensaje de error
+    await expect(page.locator('[data-test="error"]')).toBeVisible();
+    await expect(page.locator('[data-test="error"]')).toContainText('Epic sadface: Username and password do not match any user in this service');
+  });
+
+  test('debe validar campos requeridos', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Intentar login sin username
+    await page.click('[data-test="login-button"]');
+    await expect(page.locator('[data-test="error"]')).toContainText('Username is required');
+    
+    // Limpiar error y probar sin password
+    await page.click('[data-test="error-button"]');
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.click('[data-test="login-button"]');
+    await expect(page.locator('[data-test="error"]')).toContainText('Password is required');
+  });
+
+  test('debe completar flujo de compra completo', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Login
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+    
+    // Agregar productos al carrito
+    await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
+    await page.click('[data-test="add-to-cart-sauce-labs-bike-light"]');
+    
+    // Verificar badge del carrito
+    await expect(page.locator('.shopping_cart_badge')).toHaveText('2');
+    
+    // Ir al carrito
+    await page.click('.shopping_cart_link');
+    await expect(page).toHaveURL('https://www.saucedemo.com/cart.html');
+    
+    // Proceder al checkout
+    await page.click('[data-test="checkout"]');
+    
+    // Llenar información de checkout (usando datos del perfil teléfono conceptualmente)
+    await page.fill('[data-test="firstName"]', 'Usuario');
+    await page.fill('[data-test="lastName"]', 'Telefono');
+    await page.fill('[data-test="postalCode"]', '12345');
+    await page.click('[data-test="continue"]');
+    
+    // Finalizar compra
+    await page.click('[data-test="finish"]');
+    
+    // Verificar compra exitosa
+    await expect(page.locator('[data-test="complete-header"]')).toHaveText('Thank you for your order!');
+  });
+
+  test('debe poder hacer logout correctamente', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Login
+    await page.fill('[data-test="username"]', 'standard_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+    
+    // Verificar login exitoso
+    await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html');
+    
+    // Abrir menú y hacer logout
+    await page.click('#react-burger-menu-btn');
+    await page.waitForSelector('[data-test="logout-sidebar-link"]', { state: 'visible' });
+    await page.click('[data-test="logout-sidebar-link"]');
+    
+    // Verificar logout exitoso
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+    await expect(page.locator('[data-test="login-button"]')).toBeVisible();
+  });
+
+  test('debe manejar performance_glitch_user correctamente', async ({ page }) => {
+    await page.goto('https://www.saucedemo.com/');
+    
+    // Login con usuario que tiene retrasos de performance
+    await page.fill('[data-test="username"]', 'performance_glitch_user');
+    await page.fill('[data-test="password"]', 'secret_sauce');
+    await page.click('[data-test="login-button"]');
+    
+    // Esperar más tiempo debido a los glitches de performance
+    await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html', { timeout: 10000 });
+    await expect(page.locator('.title')).toHaveText('Products');
+    
+    // Verificar que los productos cargan (puede ser lento)
+    await expect(page.locator('.inventory_item')).toHaveCount(6, { timeout: 10000 });
+  });
+});
+```
+
+GUARDAR_CODIGO:saucedemo-credenciales-especificas.spec.ts
+
+**🎯 Pruebas generadas con credenciales específicas de SauceDemo:**
+
+✅ **Usuarios de SauceDemo cubiertos:**
+- `standard_user` - Usuario estándar sin problemas
+- `problem_user` - Usuario con problemas visuales/funcionales
+- `locked_out_user` - Usuario bloqueado
+- `performance_glitch_user` - Usuario con retrasos de rendimiento
+
+🧪 **Escenarios de prueba:**
+- ✅ Login exitoso con usuario estándar
+- ✅ Manejo de usuario con problemas
+- ✅ Rechazo de usuario bloqueado
+- ✅ Validación de credenciales incorrectas
+- ✅ Validación de campos requeridos
+- ✅ Flujo completo de compra (conceptualmente usando datos del "perfil teléfono")
+- ✅ Proceso de logout
+- ✅ Manejo de usuario con problemas de rendimiento
+
+🔐 **Credenciales utilizadas:**
+- Password común: `secret_sauce`
+- Usuarios: `standard_user`, `problem_user`, `locked_out_user`, `performance_glitch_user`
+
+Las pruebas mantienen la estructura del **PERFIL TELÉFONO** conceptualmente (como en el checkout donde uso datos relacionados con "Usuario Telefono") pero funcionan con las credenciales reales de SauceDemo.
+[2025-10-23T18:29:37.461Z] Test guardado: tests/saucedemo-credenciales-especificas.spec.ts

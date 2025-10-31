@@ -1,0 +1,3 @@
+[2025-10-31T04:13:44.179Z] === NUEVA SESIÓN INICIADA ===
+[2025-10-31T04:13:52.728Z] 
+[USER] bre https://mitelcel.com y navega hasta el formulario de login. Inspecciona TODOS los elementos del formulario y genera tests usando PERFIL_PHONE. Usa los selectores EXACTOS que encuentres en la página real.

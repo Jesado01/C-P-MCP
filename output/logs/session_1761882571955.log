@@ -1,0 +1,143 @@
+[2025-10-31T03:49:32.964Z] === NUEVA SESIÓN INICIADA ===
+[2025-10-31T03:50:04.145Z] 
+[USER] Abre https://mitelcel.com y navega hasta el formulario de login. Inspecciona TODOS los elementos del formulario y genera tests usando PERFIL_PHONE. Usa los selectores EXACTOS que encuentres en la página real.
+[2025-10-31T03:50:30.401Z] [CLAUDE] Voy a abrir la página y analizar el formulario de login para generar los tests con los selectores exactos.
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Login Mitelcel con Teléfono', () => {
+  test.beforeEach(async ({ page }) => {
+    // Navegar a la página principal
+    await page.goto('https://mitelcel.com');
+    
+    // Esperar a que la página cargue completamente
+    await page.waitForLoadState('networkidle');
+  });
+
+  test('debe mostrar el formulario de login correctamente', async ({ page }) => {
+    // Verificar que estamos en la página correcta
+    await expect(page).toHaveTitle(/Mitelcel/i);
+    
+    // Buscar y verificar elementos del formulario
+    // Estos selectores deben ajustarse según la inspección real
+    const phoneInput = page.locator('input[type="tel"], input[name="phone"], input[id*="phone"], input[placeholder*="teléfono"]').first();
+    const passwordInput = page.locator('input[type="password"]').first();
+    const submitButton = page.locator('button[type="submit"], button:has-text("Entrar"), button:has-text("Ingresar"), button:has-text("Iniciar")').first();
+    
+    await expect(phoneInput).toBeVisible();
+    await expect(passwordInput).toBeVisible();
+    await expect(submitButton).toBeVisible();
+  });
+
+  test('debe iniciar sesión exitosamente con credenciales válidas', async ({ page }) => {
+    // Localizar campos del formulario
+    const phoneInput = page.locator('input[type="tel"], input[name="phone"], input[id*="phone"], input[placeholder*="teléfono"]').first();
+    const passwordInput = page.locator('input[type="password"]').first();
+    const submitButton = page.locator('button[type="submit"], button:has-text("Entrar"), button:has-text("Ingresar"), button:has-text("Iniciar")').first();
+    
+    // Llenar formulario con PROFILE_PHONE
+    await phoneInput.fill(process.env.PROFILE_PHONE_NUMERO!);
+    await passwordInput.fill(process.env.PROFILE_PHONE_PASSWORD!);
+    
+    // Click en botón de login
+    await submitButton.click();
+    
+    // Esperar navegación o cambio de estado
+    await page.waitForLoadState('networkidle');
+    
+    // Verificar login exitoso (ajustar según la respuesta real)
+    await expect(page).toHaveURL(/dashboard|home|cuenta|perfil/i, { timeout: 10000 });
+  });
+
+  test('debe mostrar error con credenciales inválidas', async ({ page }) => {
+    const phoneInput = page.locator('input[type="tel"], input[name="phone"], input[id*="phone"], input[placeholder*="teléfono"]').first();
+    const passwordInput = page.locator('input[type="password"]').first();
+    const submitButton = page.locator('button[type="submit"], button:has-text("Entrar"), button:has-text("Ingresar"), button:has-text("Iniciar")').first();
+    
+    // Usar credenciales inválidas
+    await phoneInput.fill('0000000000');
+    await passwordInput.fill('InvalidPass123');
+    await submitButton.click();
+    
+    // Verificar mensaje de error
+    const errorMessage = page.locator('text=/error|incorrecto|inválido|fallido/i, .error, .alert-danger, [role="alert"]').first();
+    await expect(errorMessage).toBeVisible({ timeout: 5000 });
+  });
+
+  test('debe validar campo de teléfono vacío', async ({ page }) => {
+    const passwordInput = page.locator('input[type="password"]').first();
+    const submitButton = page.locator('button[type="submit"], button:has-text("Entrar"), button:has-text("Ingresar"), button:has-text("Iniciar")').first();
+    
+    // Solo llenar password
+    await passwordInput.fill(process.env.PROFILE_PHONE_PASSWORD!);
+    await submitButton.click();
+    
+    // Verificar validación de campo requerido
+    const phoneInput = page.locator('input[type="tel"], input[name="phone"], input[id*="phone"], input[placeholder*="teléfono"]').first();
+    await expect(phoneInput).toHaveAttribute('required', '');
+  });
+
+  test('debe validar campo de password vacío', async ({ page }) => {
+    const phoneInput = page.locator('input[type="tel"], input[name="phone"], input[id*="phone"], input[placeholder*="teléfono"]').first();
+    const submitButton = page.locator('button[type="submit"], button:has-text("Entrar"), button:has-text("Ingresar"), button:has-text("Iniciar")').first();
+    
+    // Solo llenar teléfono
+    await phoneInput.fill(process.env.PROFILE_PHONE_NUMERO!);
+    await submitButton.click();
+    
+    // Verificar validación de campo requerido
+    const passwordInput = page.locator('input[type="password"]').first();
+    await expect(passwordInput).toHaveAttribute('required', '');
+  });
+});
+```
+
+GUARDAR_CODIGO:mitelcel-login-telefono.spec.ts
+
+**📝 NOTAS IMPORTANTES:**
+
+Este código usa **selectores genéricos** porque no he podido inspeccionar la página real. Para obtener los **selectores EXACTOS**, necesito que:
+
+1. **Me compartas los selectores específicos** que encuentres al inspeccionar con DevTools
+2. O ejecutes este script de inspección:
+
+```typescript
+import { test } from '@playwright/test';
+
+test('Inspeccionar formulario Mitelcel', async ({ page }) => {
+  await page.goto('https://mitelcel.com');
+  await page.waitForLoadState('networkidle');
+  
+  // Capturar todos los inputs
+  const inputs = await page.locator('input').all();
+  console.log('\n📋 INPUTS ENCONTRADOS:');
+  for (let i = 0; i < inputs.length; i++) {
+    const input = inputs[i];
+    const id = await input.getAttribute('id');
+    const name = await input.getAttribute('name');
+    const type = await input.getAttribute('type');
+    const placeholder = await input.getAttribute('placeholder');
+    console.log(`\n${i + 1}. Input:`, { id, name, type, placeholder });
+  }
+  
+  // Capturar todos los botones
+  const buttons = await page.locator('button').all();
+  console.log('\n🔘 BOTONES ENCONTRADOS:');
+  for (let i = 0; i < buttons.length; i++) {
+    const button = buttons[i];
+    const text = await button.textContent();
+    const type = await button.getAttribute('type');
+    console.log(`\n${i + 1}. Button:`, { text, type });
+  }
+  
+  // Screenshot para referencia
+  await page.screenshot({ path: 'mitelcel-login-form.png', fullPage: true });
+});
+```
+
+GUARDAR_CODIGO:inspect-mitelcel.spec.ts
+
+**🔍 Una vez que ejecutes el script de inspección, comparte los resultados y actualizaré los tests con los selectores EXACTOS de la página real.**
+[2025-10-31T03:50:30.407Z] Test guardado: tests/mitelcel-login-telefono.spec.ts
+[2025-10-31T03:50:30.408Z] Test guardado: tests/mitelcel-login-telefono.spec.ts
