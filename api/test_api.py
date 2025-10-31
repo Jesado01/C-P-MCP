@@ -1,13 +1,27 @@
 #!/usr/bin/env python3
 """
 Simple test script for Claude Playwright MCP API
+
+Requirements:
+1. .env file must exist in project root with ANTHROPIC_API_KEY
+2. Node.js dependencies must be installed (npm install)
+3. FastAPI server must be running (python main.py)
 """
 
 import requests
 import time
 import sys
+import os
 
 BASE_URL = "http://localhost:8000"
+
+# Check if .env file exists
+env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+if not os.path.exists(env_path):
+    print("⚠️  WARNING: .env file not found in project root!")
+    print(f"   Expected location: {env_path}")
+    print("   The agent may fail to start without ANTHROPIC_API_KEY")
+    print()
 
 def test_api():
     print("=" * 60)
