@@ -2,6 +2,15 @@
 
 Agente inteligente que usa Claude API + MCP para generar y ejecutar pruebas de Playwright automáticamente.
 
+## 🎭 Modos de Uso
+
+Este proyecto soporta **dos modos de operación**:
+
+1. **🖥️ Modo Interactivo (CLI)** - Interfaz de línea de comandos para uso directo en terminal
+2. **🌐 Modo API (NEW!)** - API REST + WebSocket para integración con frontends web
+
+Ver [api/API_USAGE.md](api/API_USAGE.md) para documentación completa de la API.
+
 ---
 
 ## 🚀 Instalación Inicial
@@ -45,12 +54,33 @@ PROFILE_USER_PASSWORD=TuPassword789
 
 ## 🎯 Comandos Principales
 
-### Iniciar el Agente
+### Modo Interactivo (CLI)
 
 ```bash
+# Iniciar el agente en modo interactivo
 npm start
 
+# O directamente
+node claude-agent-api.js
+
 EJEMPLO: Abre https://www.saucedemo.com/ y genera pruebas usando el PERFIL TELÉFONO
+```
+
+### Modo API (Servidor Web)
+
+```bash
+# 1. Instalar dependencias de Python
+cd api
+pip install -r requirements.txt
+
+# 2. Iniciar el servidor FastAPI
+python main.py
+
+# El API estará disponible en http://localhost:8000
+# Ver api/API_USAGE.md para endpoints y ejemplos
+
+# 3. Probar el API (en otra terminal)
+python test_api.py
 ```
 
 ### Ejecutar Tests Generados

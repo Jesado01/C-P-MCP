@@ -33,9 +33,9 @@ class AgentManager:
             return {"status": "already_running", "message": "Agent is already running"}
         
         try:
-            # Iniciar el agente Node.js
+            # Iniciar el agente Node.js en modo API
             self.process = subprocess.Popen(
-                ['node', '../claude-agent-api.js'],
+                ['node', '../claude-agent-api.js', '--api'],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -87,12 +87,16 @@ class AgentManager:
         """Envía un mensaje al agente"""
         if not self.is_running or not self.process:
             raise HTTPException(status_code=400, detail="Agent not running")
-        
+
         try:
-            # Enviar mensaje al agente
-            self.process.stdin.write(message + '\n')
+            # Enviar mensaje al agente en formato JSON
+            json_message = json.dumps({
+                "type": "message",
+                "content": message
+            })
+            self.process.stdin.write(json_message + '\n')
             self.process.stdin.flush()
-            
+
             return {
                 "status": "sent",
                 "message": "Message sent to agent",
@@ -105,20 +109,22 @@ class AgentManager:
         """Detiene el agente"""
         if not self.is_running:
             return {"status": "not_running", "message": "Agent is not running"}
-        
+
         try:
             if self.process:
-                self.process.stdin.write('exit\n')
+                # Enviar comando de salida en formato JSON
+                exit_message = json.dumps({"type": "exit"})
+                self.process.stdin.write(exit_message + '\n')
                 self.process.stdin.flush()
-                
+
                 # Esperar un momento para que termine gracefully
                 await asyncio.sleep(1)
-                
+
                 if self.process.poll() is None:
                     self.process.terminate()
-                    
+
                 self.process = None
-            
+
             self.is_running = False
             
             await self.broadcast({
@@ -233,11 +239,11 @@ async def websocket_endpoint(websocket: WebSocket):
             
             try:
                 message_data = json.loads(data)
-                
+
                 # Si el cliente envía un mensaje, reenviarlo al agente
-                if message_data.get("type") == "user_message":
+                if message_data.get("type") == "user_message" or message_data.get("type") == "message":
                     await agent_manager.send_message(message_data.get("content", ""))
-                    
+
             except json.JSONDecodeError:
                 # Si no es JSON, enviarlo directamente
                 await agent_manager.send_message(data)

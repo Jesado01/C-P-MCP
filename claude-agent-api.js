@@ -6,13 +6,15 @@ const fs = require('fs-extra');
 const path = require('path');
 
 class ClaudePlaywrightAgent {
-  constructor(apiKey) {
+  constructor(apiKey, isApiMode = false) {
     this.client = new Anthropic({ apiKey });
     this.mcpProcess = null;
     this.conversationHistory = [];
     this.outputDir = path.join(__dirname, 'output');
     this.sessionId = Date.now();
     this.pendingStdout = null;
+    this.isApiMode = isApiMode;
+    this.savedFiles = [];
     this.ensureOutputDirs();
   }
 
@@ -22,30 +24,59 @@ class ClaudePlaywrightAgent {
     fs.ensureDirSync(path.join(__dirname, 'tests'));
   }
 
+  log(message, data = null) {
+    if (this.isApiMode) {
+      // In API mode, send structured JSON to stdout
+      this.sendApiMessage({
+        type: 'log',
+        message,
+        data,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      // In interactive mode, use console
+      console.log(message, data || '');
+    }
+  }
+
+  sendApiMessage(message) {
+    if (this.isApiMode) {
+      process.stdout.write(JSON.stringify(message) + '\n');
+    }
+  }
+
   async startMCPServer() {
-    console.log('🚀 Iniciando servidor MCP...');
-    console.log('[DEBUG] Spawning: node playwright-mcp-server.js');
-    
+    this.log('🚀 Iniciando servidor MCP...');
+    this.log('[DEBUG] Spawning: node playwright-mcp-server.js');
+
     this.mcpProcess = spawn('node', ['playwright-mcp-server.js'], {
       stdio: ['pipe', 'pipe', 'pipe']
     });
 
     this.mcpProcess.stderr.on('data', (data) => {
-      console.error('[DEBUG] MCP stderr:', data.toString().trim());
+      if (!this.isApiMode) {
+        console.error('[DEBUG] MCP stderr:', data.toString().trim());
+      }
     });
 
     this.mcpProcess.on('error', (error) => {
-      console.error('[DEBUG] ❌ MCP process error:', error);
+      if (!this.isApiMode) {
+        console.error('[DEBUG] ❌ MCP process error:', error);
+      }
     });
 
     this.mcpProcess.on('exit', (code, signal) => {
-      console.log(`[DEBUG] MCP process exited with code ${code}, signal ${signal}`);
+      if (!this.isApiMode) {
+        console.log(`[DEBUG] MCP process exited with code ${code}, signal ${signal}`);
+      }
     });
 
     return new Promise((resolve) => {
       setTimeout(() => {
-        console.log('✅ Servidor MCP iniciado\n');
-        console.log('[DEBUG] MCP Process PID:', this.mcpProcess.pid);
+        this.log('✅ Servidor MCP iniciado\n');
+        if (!this.isApiMode) {
+          console.log('[DEBUG] MCP Process PID:', this.mcpProcess.pid);
+        }
         this.logSession('=== NUEVA SESIÓN INICIADA ===');
         resolve();
       }, 2000);
@@ -53,7 +84,16 @@ class ClaudePlaywrightAgent {
   }
 
   async sendToMCP(toolName, args) {
-    console.log(`\n[DEBUG] Enviando a MCP: ${toolName}`, args);
+    if (!this.isApiMode) {
+      console.log(`\n[DEBUG] Enviando a MCP: ${toolName}`, args);
+    } else {
+      this.sendApiMessage({
+        type: 'tool_use',
+        tool: toolName,
+        args,
+        timestamp: new Date().toISOString()
+      });
+    }
     
     return new Promise((resolve, reject) => {
       const request = JSON.stringify({
@@ -63,45 +103,59 @@ class ClaudePlaywrightAgent {
         params: { name: toolName, arguments: args }
       }) + '\n';
 
-      console.log(`[DEBUG] Request:`, request.trim());
+      if (!this.isApiMode) {
+        console.log(`[DEBUG] Request:`, request.trim());
+      }
 
       let response = '';
       const timeout = setTimeout(() => {
-        console.log(`[DEBUG] ⏰ TIMEOUT`);
+        if (!this.isApiMode) {
+          console.log(`[DEBUG] ⏰ TIMEOUT`);
+        }
         this.mcpProcess.stdout.removeListener('data', onData);
         reject(new Error('MCP timeout'));
       }, 30000);
-      
+
       const onData = (data) => {
         const chunk = data.toString();
-        console.log(`[DEBUG] Chunk recibido:`, chunk.substring(0, 200));
+        if (!this.isApiMode) {
+          console.log(`[DEBUG] Chunk recibido:`, chunk.substring(0, 200));
+        }
         response += chunk;
-        
+
         if (response.includes('\n')) {
           clearTimeout(timeout);
           this.mcpProcess.stdout.removeListener('data', onData);
-          
+
           try {
             const result = JSON.parse(response.trim());
-            console.log(`[DEBUG] ✅ JSON parseado OK`);
+            if (!this.isApiMode) {
+              console.log(`[DEBUG] ✅ JSON parseado OK`);
+            }
             resolve(result.result);
           } catch (e) {
-            console.error(`[DEBUG] ❌ Error parseando:`, e.message);
-            console.error('[DEBUG] Respuesta completa:', response);
+            if (!this.isApiMode) {
+              console.error(`[DEBUG] ❌ Error parseando:`, e.message);
+              console.error('[DEBUG] Respuesta completa:', response);
+            }
             reject(e);
           }
         }
       };
 
       this.mcpProcess.stdout.on('data', onData);
-      
+
       try {
         this.mcpProcess.stdin.write(request);
-        console.log(`[DEBUG] ✅ Request enviado`);
+        if (!this.isApiMode) {
+          console.log(`[DEBUG] ✅ Request enviado`);
+        }
       } catch (error) {
         clearTimeout(timeout);
         this.mcpProcess.stdout.removeListener('data', onData);
-        console.error(`[DEBUG] ❌ Error escribiendo:`, error);
+        if (!this.isApiMode) {
+          console.error(`[DEBUG] ❌ Error escribiendo:`, error);
+        }
         reject(error);
       }
     });
@@ -113,10 +167,18 @@ class ClaudePlaywrightAgent {
     }
 
     if (userMessage !== 'continúa') {
-      console.log(`\n👤 Tú: ${userMessage}`);
-      console.log('🤖 Claude está pensando...\n');
+      if (!this.isApiMode) {
+        console.log(`\n👤 Tú: ${userMessage}`);
+        console.log('🤖 Claude está pensando...\n');
+      } else {
+        this.sendApiMessage({
+          type: 'user_message',
+          content: userMessage,
+          timestamp: new Date().toISOString()
+        });
+      }
       this.logSession(`\n[USER] ${userMessage}`);
-      
+
       this.conversationHistory.push({
         role: 'user',
         content: userMessage
@@ -182,32 +244,54 @@ Responde en español.`,
     });
 
     const toolUses = response.content.filter(c => c.type === 'tool_use');
-    
+
     if (toolUses.length > 0) {
-      console.log(`[DEBUG] Claude quiere usar ${toolUses.length} herramientas`);
-      
+      if (!this.isApiMode) {
+        console.log(`[DEBUG] Claude quiere usar ${toolUses.length} herramientas`);
+      }
+
       this.conversationHistory.push({
         role: 'assistant',
         content: response.content
       });
 
       const toolResults = [];
-      
+
       for (const toolUse of toolUses) {
-        console.log(`🔧 ${toolUse.name}(${JSON.stringify(toolUse.input)})`);
-        
+        if (!this.isApiMode) {
+          console.log(`🔧 ${toolUse.name}(${JSON.stringify(toolUse.input)})`);
+        }
+
         try {
           const result = await this.sendToMCP(toolUse.name, toolUse.input);
           const resultText = result?.content?.[0]?.text || JSON.stringify(result);
-          console.log(`✅ ${resultText.substring(0, 100)}...\n`);
-          
+
+          if (!this.isApiMode) {
+            console.log(`✅ ${resultText.substring(0, 100)}...\n`);
+          } else {
+            this.sendApiMessage({
+              type: 'tool_result',
+              tool: toolUse.name,
+              result: resultText.substring(0, 200),
+              timestamp: new Date().toISOString()
+            });
+          }
+
           toolResults.push({
             type: 'tool_result',
             tool_use_id: toolUse.id,
             content: resultText
           });
         } catch (error) {
-          console.error(`❌ ${error.message}\n`);
+          if (!this.isApiMode) {
+            console.error(`❌ ${error.message}\n`);
+          } else {
+            this.sendApiMessage({
+              type: 'error',
+              error: error.message,
+              timestamp: new Date().toISOString()
+            });
+          }
           toolResults.push({
             type: 'tool_result',
             tool_use_id: toolUse.id,
@@ -216,19 +300,21 @@ Responde en español.`,
           });
         }
       }
-      
+
       this.conversationHistory.push({
         role: 'user',
         content: toolResults
       });
-      
-      console.log('[DEBUG] Enviando resultados de vuelta a Claude...\n');
+
+      if (!this.isApiMode) {
+        console.log('[DEBUG] Enviando resultados de vuelta a Claude...\n');
+      }
       return await this.chat('continúa');
     }
 
     const textContent = response.content.find(c => c.type === 'text');
     const assistantMessage = textContent?.text || '';
-    
+
     this.logSession(`[CLAUDE] ${assistantMessage}`);
 
     this.conversationHistory.push({
@@ -236,11 +322,26 @@ Responde en español.`,
       content: response.content
     });
 
+    // Reset saved files tracking for this response
+    this.savedFiles = [];
     await this.saveGeneratedCode(assistantMessage);
 
     const cleanMessage = assistantMessage.replace(/GUARDAR_CODIGO:.+$/gm, '').trim();
-    if (cleanMessage) {
-      console.log(`🤖 Claude: ${cleanMessage}\n`);
+
+    if (this.isApiMode) {
+      // Send structured response in API mode
+      this.sendApiMessage({
+        type: 'response',
+        content: cleanMessage,
+        hasCode: this.savedFiles.length > 0,
+        savedFiles: this.savedFiles,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      // Interactive mode output
+      if (cleanMessage) {
+        console.log(`🤖 Claude: ${cleanMessage}\n`);
+      }
     }
 
     this.saveConversation();
@@ -255,18 +356,36 @@ Responde en español.`,
       for (let i = 0; i < matches.length; i++) {
         const code = matches[i][1];
         const filenameMatch = message.match(/GUARDAR_CODIGO:(\S+)/);
-        const filename = filenameMatch 
-          ? filenameMatch[1] 
+        const filename = filenameMatch
+          ? filenameMatch[1]
           : `generated_test_${this.sessionId}_${i + 1}.spec.ts`;
-        
+
         const filepath = path.join(__dirname, 'tests', filename);
-        
+
         try {
           await fs.writeFile(filepath, code, 'utf8');
-          console.log(`\n💾 ✅ Test: tests/${filename}\n`);
+          this.savedFiles.push(`tests/${filename}`);
+
+          if (!this.isApiMode) {
+            console.log(`\n💾 ✅ Test: tests/${filename}\n`);
+          } else {
+            this.sendApiMessage({
+              type: 'file_saved',
+              filepath: `tests/${filename}`,
+              timestamp: new Date().toISOString()
+            });
+          }
           this.logSession(`Test guardado: tests/${filename}`);
         } catch (error) {
-          console.error(`❌ Error guardando: ${error.message}`);
+          if (!this.isApiMode) {
+            console.error(`❌ Error guardando: ${error.message}`);
+          } else {
+            this.sendApiMessage({
+              type: 'error',
+              error: `Error saving file: ${error.message}`,
+              timestamp: new Date().toISOString()
+            });
+          }
         }
       }
     }
@@ -304,6 +423,63 @@ Responde en español.`,
       timestamp: new Date().toISOString(),
       history: this.conversationHistory
     }, { spaces: 2 });
+  }
+
+  async startApiMode() {
+    await this.startMCPServer();
+
+    // Send ready signal
+    this.sendApiMessage({
+      type: 'ready',
+      sessionId: this.sessionId,
+      timestamp: new Date().toISOString()
+    });
+
+    // Listen for messages on stdin
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: false
+    });
+
+    rl.on('line', async (line) => {
+      try {
+        const message = JSON.parse(line);
+
+        if (message.type === 'message' || message.type === 'user_message') {
+          await this.chat(message.content);
+        } else if (message.type === 'command') {
+          await this.executeCommand(message.content);
+        } else if (message.type === 'exit') {
+          try {
+            await this.sendToMCP('close', {});
+            if (this.mcpProcess) {
+              this.mcpProcess.kill();
+            }
+          } catch (e) {}
+          this.sendApiMessage({
+            type: 'shutdown',
+            timestamp: new Date().toISOString()
+          });
+          process.exit(0);
+        }
+      } catch (error) {
+        this.sendApiMessage({
+          type: 'error',
+          error: `Failed to parse message: ${error.message}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    rl.on('close', () => {
+      try {
+        if (this.mcpProcess) {
+          this.mcpProcess.kill();
+        }
+      } catch (e) {}
+      process.exit(0);
+    });
   }
 
   async startInteractive() {
@@ -351,11 +527,22 @@ Responde en español.`,
   }
 }
 
+// Entry point
 const apiKey = process.env.ANTHROPIC_API_KEY;
 if (!apiKey) {
   console.error('❌ Configura ANTHROPIC_API_KEY en .env');
   process.exit(1);
 }
 
-const agent = new ClaudePlaywrightAgent(apiKey);
-agent.startInteractive();
+// Check for --api flag
+const isApiMode = process.argv.includes('--api');
+
+const agent = new ClaudePlaywrightAgent(apiKey, isApiMode);
+
+if (isApiMode) {
+  // API mode: communicate via stdin/stdout JSON
+  agent.startApiMode();
+} else {
+  // Interactive mode: readline interface
+  agent.startInteractive();
+}
