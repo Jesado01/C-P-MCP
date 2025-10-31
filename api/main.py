@@ -34,21 +34,26 @@ class AgentManager:
         
         try:
             # Iniciar el agente Node.js en modo API
+            # Use parent directory as cwd so .env file can be found
+            api_dir = os.path.dirname(__file__)
+            project_root = os.path.dirname(api_dir)
+
             self.process = subprocess.Popen(
-                ['node', '../claude-agent-api.js', '--api'],
+                ['node', 'claude-agent-api.js', '--api'],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
-                cwd=os.path.dirname(__file__)
+                cwd=project_root
             )
             
             self.is_running = True
-            
-            # Iniciar task para leer output
+
+            # Iniciar task para leer output y errores
             asyncio.create_task(self._read_output())
-            
+            asyncio.create_task(self._read_errors())
+
             return {
                 "status": "started",
                 "message": "Agent started successfully",
@@ -62,18 +67,25 @@ class AgentManager:
         try:
             while self.is_running and self.process and self.process.poll() is None:
                 line = self.process.stdout.readline()
-                
+
                 if line:
                     line = line.strip()
-                    print(f"[AGENT] {line}")
-                    
-                    # Enviar a todos los clientes WebSocket
-                    await self.broadcast({
-                        "type": "agent_message",
-                        "content": line,
-                        "timestamp": datetime.now().isoformat()
-                    })
-                    
+
+                    # Try to parse as JSON first (API mode output)
+                    try:
+                        agent_message = json.loads(line)
+                        print(f"[AGENT] {agent_message.get('type', 'unknown')}: {str(agent_message)[:100]}")
+                        # Forward the structured message directly
+                        await self.broadcast(agent_message)
+                    except json.JSONDecodeError:
+                        # If not JSON, treat as plain text (for compatibility)
+                        print(f"[AGENT] {line}")
+                        await self.broadcast({
+                            "type": "agent_message",
+                            "content": line,
+                            "timestamp": datetime.now().isoformat()
+                        })
+
                 await asyncio.sleep(0.1)
         except Exception as e:
             print(f"Error reading output: {e}")
@@ -82,6 +94,27 @@ class AgentManager:
                 "content": str(e),
                 "timestamp": datetime.now().isoformat()
             })
+
+    async def _read_errors(self):
+        """Lee stderr del agente y lo registra"""
+        try:
+            while self.is_running and self.process and self.process.poll() is None:
+                line = self.process.stderr.readline()
+
+                if line:
+                    line = line.strip()
+                    print(f"[AGENT ERROR] {line}")
+
+                    # Send errors to WebSocket clients
+                    await self.broadcast({
+                        "type": "agent_error",
+                        "content": line,
+                        "timestamp": datetime.now().isoformat()
+                    })
+
+                await asyncio.sleep(0.1)
+        except Exception as e:
+            print(f"Error reading stderr: {e}")
     
     async def send_message(self, message: str):
         """Envía un mensaje al agente"""
