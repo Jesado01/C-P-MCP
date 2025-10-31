@@ -9,10 +9,8 @@ export interface Message {
 }
 
 interface ChatState {
-  apiKey: string;
   messages: Message[];
   isLoading: boolean;
-  setApiKey: (key: string) => void;
   addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void;
   setLoading: (loading: boolean) => void;
   clearMessages: () => void;
@@ -21,10 +19,8 @@ interface ChatState {
 export const useChatStore = create<ChatState>()(
   persist(
     (set) => ({
-      apiKey: '',
       messages: [],
       isLoading: false,
-      setApiKey: (key) => set({ apiKey: key }),
       addMessage: (message) =>
         set((state) => ({
           messages: [
@@ -41,7 +37,7 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: 'claude-chat-storage',
-      partialize: (state) => ({ apiKey: state.apiKey }),
+      partialize: (state) => ({ messages: state.messages }),
     }
   )
 );
