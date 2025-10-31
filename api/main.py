@@ -2,9 +2,8 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import subprocess
-import json
 import asyncio
+import json
 import os
 from typing import Optional, List
 from datetime import datetime
@@ -23,7 +22,7 @@ app.add_middleware(
 # Estado global
 class AgentManager:
     def __init__(self):
-        self.process: Optional[subprocess.Popen] = None
+        self.process: Optional[asyncio.subprocess.Process] = None
         self.active_connections: List[WebSocket] = []
         self.is_running = False
         self.message_queue = asyncio.Queue()
@@ -31,23 +30,22 @@ class AgentManager:
     async def start(self):
         if self.is_running:
             return {"status": "already_running", "message": "Agent is already running"}
-        
+
         try:
             # Iniciar el agente Node.js en modo API
             # Use parent directory as cwd so .env file can be found
             api_dir = os.path.dirname(__file__)
             project_root = os.path.dirname(api_dir)
 
-            self.process = subprocess.Popen(
-                ['node', 'claude-agent-api.js', '--api'],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
+            # Use asyncio subprocess for non-blocking I/O
+            self.process = await asyncio.create_subprocess_exec(
+                'node', 'claude-agent-api.js', '--api',
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
                 cwd=project_root
             )
-            
+
             self.is_running = True
 
             # Iniciar task para leer output y errores
@@ -65,11 +63,12 @@ class AgentManager:
     async def _read_output(self):
         """Lee el output del agente y lo envía a los clientes conectados"""
         try:
-            while self.is_running and self.process and self.process.poll() is None:
-                line = self.process.stdout.readline()
+            while self.is_running and self.process and self.process.returncode is None:
+                # Use async readline
+                line = await self.process.stdout.readline()
 
                 if line:
-                    line = line.strip()
+                    line = line.decode('utf-8').strip()
 
                     # Try to parse as JSON first (API mode output)
                     try:
@@ -85,8 +84,9 @@ class AgentManager:
                             "content": line,
                             "timestamp": datetime.now().isoformat()
                         })
-
-                await asyncio.sleep(0.1)
+                else:
+                    # No more data, wait a bit
+                    await asyncio.sleep(0.1)
         except Exception as e:
             print(f"Error reading output: {e}")
             await self.broadcast({
@@ -98,11 +98,12 @@ class AgentManager:
     async def _read_errors(self):
         """Lee stderr del agente y lo registra"""
         try:
-            while self.is_running and self.process and self.process.poll() is None:
-                line = self.process.stderr.readline()
+            while self.is_running and self.process and self.process.returncode is None:
+                # Use async readline
+                line = await self.process.stderr.readline()
 
                 if line:
-                    line = line.strip()
+                    line = line.decode('utf-8').strip()
                     print(f"[AGENT ERROR] {line}")
 
                     # Send errors to WebSocket clients
@@ -111,8 +112,9 @@ class AgentManager:
                         "content": line,
                         "timestamp": datetime.now().isoformat()
                     })
-
-                await asyncio.sleep(0.1)
+                else:
+                    # No more data, wait a bit
+                    await asyncio.sleep(0.1)
         except Exception as e:
             print(f"Error reading stderr: {e}")
     
@@ -126,11 +128,11 @@ class AgentManager:
             }
 
         # Check if process is still alive
-        if self.process.poll() is not None:
+        if self.process.returncode is not None:
             self.is_running = False
             return {
                 "status": "error",
-                "message": f"Agent process died unexpectedly (exit code: {self.process.poll()})",
+                "message": f"Agent process died unexpectedly (exit code: {self.process.returncode})",
                 "timestamp": datetime.now().isoformat()
             }
 
@@ -140,8 +142,9 @@ class AgentManager:
                 "type": "message",
                 "content": message
             })
-            self.process.stdin.write(json_message + '\n')
-            self.process.stdin.flush()
+            # Use async write
+            self.process.stdin.write((json_message + '\n').encode('utf-8'))
+            await self.process.stdin.drain()
 
             return {
                 "status": "sent",
@@ -172,23 +175,24 @@ class AgentManager:
                 # Try to send exit command gracefully
                 try:
                     exit_message = json.dumps({"type": "exit"})
-                    self.process.stdin.write(exit_message + '\n')
-                    self.process.stdin.flush()
+                    self.process.stdin.write((exit_message + '\n').encode('utf-8'))
+                    await self.process.stdin.drain()
                 except (BrokenPipeError, OSError):
                     # Process already dead, that's ok
                     pass
 
                 # Esperar un momento para que termine gracefully
-                await asyncio.sleep(1)
-
-                # If still running, terminate forcefully
-                if self.process.poll() is None:
+                try:
+                    await asyncio.wait_for(self.process.wait(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    # If still running, terminate forcefully
                     self.process.terminate()
-                    await asyncio.sleep(0.5)
-
-                # If STILL running, kill it
-                if self.process.poll() is None:
-                    self.process.kill()
+                    try:
+                        await asyncio.wait_for(self.process.wait(), timeout=1.0)
+                    except asyncio.TimeoutError:
+                        # If STILL running, kill it
+                        self.process.kill()
+                        await self.process.wait()
 
                 self.process = None
 
