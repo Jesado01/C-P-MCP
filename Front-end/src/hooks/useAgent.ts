@@ -65,36 +65,45 @@ export const useAgent = () => {
 
   // Connect WebSocket when agent is running
   useEffect(() => {
-    if (isAgentRunning && !isConnected) {
-      wsService.current
-        .connect()
-        .then(() => {
-          setIsConnected(true);
-          // Only show toast once
-          if (!hasShownConnectionToast.current) {
-            toast({
-              title: 'Conectado',
-              description: 'WebSocket conectado.',
+    let connectAttempted = false;
+
+    if (isAgentRunning && !isConnected && !connectAttempted) {
+      connectAttempted = true;
+
+      // Wait a bit for the agent to fully initialize
+      const connectTimer = setTimeout(() => {
+        wsService.current
+          .connect()
+          .then(() => {
+            setIsConnected(true);
+            // Only show toast once
+            if (!hasShownConnectionToast.current) {
+              toast({
+                title: 'Conectado',
+                description: 'WebSocket conectado.',
+              });
+              hasShownConnectionToast.current = true;
+            }
+
+            // Register all pending callbacks
+            messageCallbacksRef.current.forEach(callback => {
+              wsService.current.onMessage(callback);
             });
-            hasShownConnectionToast.current = true;
-          }
-
-          // Register all pending callbacks
-          messageCallbacksRef.current.forEach(callback => {
-            wsService.current.onMessage(callback);
+          })
+          .catch((error) => {
+            console.error('WebSocket connection failed:', error);
+            // Don't retry here - let the reconnect logic handle it
           });
-        })
-        .catch((error) => {
-          console.error('WebSocket connection failed:', error);
-        });
-    }
+      }, 3000); // Wait 3 seconds for agent to be fully ready
 
-    return () => {
-      if (wsService.current.isConnected()) {
-        wsService.current.disconnect();
-        setIsConnected(false);
-      }
-    };
+      return () => {
+        clearTimeout(connectTimer);
+        if (wsService.current.isConnected()) {
+          wsService.current.disconnect();
+          setIsConnected(false);
+        }
+      };
+    }
   }, [isAgentRunning, isConnected, toast]);
 
   const startAgent = useCallback(async () => {

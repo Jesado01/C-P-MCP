@@ -63,40 +63,53 @@ class AgentManager:
     async def _read_output(self):
         """Lee el output del agente y lo envía a los clientes conectados"""
         try:
+            buffer = ""
             while self.is_running and self.process and self.process.returncode is None:
-                # Use async readline
-                line = await self.process.stdout.readline()
+                # Read in chunks to handle large messages (read 8KB at a time)
+                chunk = await self.process.stdout.read(8192)
 
-                if line:
-                    line = line.decode('utf-8').strip()
+                if chunk:
+                    buffer += chunk.decode('utf-8')
 
-                    # Try to parse as JSON first (API mode output)
-                    try:
-                        agent_message = json.loads(line)
-                        msg_type = agent_message.get('type', 'unknown')
+                    # Process complete lines (messages ending with newline)
+                    while '\n' in buffer:
+                        line, buffer = buffer.split('\n', 1)
+                        line = line.strip()
 
-                        # Log with more details for response messages
-                        if msg_type == 'response':
-                            content_preview = agent_message.get('content', '')[:200]
-                            print(f"[AGENT] {msg_type}: content_length={len(agent_message.get('content', ''))}, preview={content_preview}...")
-                        else:
-                            print(f"[AGENT] {msg_type}: {str(agent_message)[:100]}")
+                        if not line:
+                            continue
 
-                        # Forward the structured message directly
-                        await self.broadcast(agent_message)
-                    except json.JSONDecodeError:
-                        # If not JSON, treat as plain text (for compatibility)
-                        print(f"[AGENT] {line}")
-                        await self.broadcast({
-                            "type": "agent_message",
-                            "content": line,
-                            "timestamp": datetime.now().isoformat()
-                        })
+                        # Try to parse as JSON first (API mode output)
+                        try:
+                            agent_message = json.loads(line)
+                            msg_type = agent_message.get('type', 'unknown')
+
+                            # Log with more details for response messages
+                            if msg_type == 'response':
+                                content_length = len(agent_message.get('content', ''))
+                                content_preview = agent_message.get('content', '')[:200]
+                                print(f"[AGENT] {msg_type}: content_length={content_length}, preview={content_preview}...")
+                                print(f"[AGENT] Broadcasting full response ({content_length} chars)")
+                            else:
+                                print(f"[AGENT] {msg_type}: {str(agent_message)[:100]}")
+
+                            # Forward the structured message directly
+                            await self.broadcast(agent_message)
+                        except json.JSONDecodeError as e:
+                            # If not JSON, treat as plain text (for compatibility)
+                            print(f"[AGENT] Non-JSON line ({len(line)} chars): {line[:100]}")
+                            await self.broadcast({
+                                "type": "agent_message",
+                                "content": line,
+                                "timestamp": datetime.now().isoformat()
+                            })
                 else:
                     # No more data, wait a bit
                     await asyncio.sleep(0.1)
         except Exception as e:
             print(f"Error reading output: {e}")
+            import traceback
+            traceback.print_exc()
             await self.broadcast({
                 "type": "error",
                 "content": str(e),

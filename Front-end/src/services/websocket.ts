@@ -21,8 +21,8 @@ export type MessageCallback = (message: AgentMessage) => void;
 export class WebSocketService {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 2000;
+  private maxReconnectAttempts = 3; // Reduced from 5 to 3
+  private reconnectDelay = 3000; // Increased from 2s to 3s
   private messageCallbacks: MessageCallback[] = [];
   private url: string;
   private shouldReconnect = true;
