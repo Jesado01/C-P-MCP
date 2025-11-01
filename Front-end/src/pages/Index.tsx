@@ -57,6 +57,11 @@ const Index = () => {
 
         case 'response':
           // Final response from Claude
+          console.log('[Response Debug] Full message:', message);
+          console.log('[Response Debug] Content length:', message.content?.length);
+          console.log('[Response Debug] Has code:', message.hasCode);
+          console.log('[Response Debug] Saved files:', message.savedFiles);
+
           if (message.content) {
             let responseText = message.content;
 
@@ -64,7 +69,11 @@ const Index = () => {
               responseText += `\n\n✅ **Tests guardados:**\n${message.savedFiles.map(f => `- ${f}`).join('\n')}`;
             }
 
+            console.log('[Response Debug] Adding message to chat:', responseText.substring(0, 100));
             addMessage({ role: 'assistant', content: responseText });
+            setLoading(false);
+          } else {
+            console.warn('[Response Debug] No content in response message!');
             setLoading(false);
           }
           break;

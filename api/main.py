@@ -73,7 +73,15 @@ class AgentManager:
                     # Try to parse as JSON first (API mode output)
                     try:
                         agent_message = json.loads(line)
-                        print(f"[AGENT] {agent_message.get('type', 'unknown')}: {str(agent_message)[:100]}")
+                        msg_type = agent_message.get('type', 'unknown')
+
+                        # Log with more details for response messages
+                        if msg_type == 'response':
+                            content_preview = agent_message.get('content', '')[:200]
+                            print(f"[AGENT] {msg_type}: content_length={len(agent_message.get('content', ''))}, preview={content_preview}...")
+                        else:
+                            print(f"[AGENT] {msg_type}: {str(agent_message)[:100]}")
+
                         # Forward the structured message directly
                         await self.broadcast(agent_message)
                     except json.JSONDecodeError:

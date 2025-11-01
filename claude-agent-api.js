@@ -355,7 +355,8 @@ Responde en español.`,
     if (matches.length > 0) {
       for (let i = 0; i < matches.length; i++) {
         const code = matches[i][1];
-        const filenameMatch = message.match(/GUARDAR_CODIGO:(\S+)/);
+        // Fixed: Only capture valid filename characters (no markdown asterisks)
+        const filenameMatch = message.match(/GUARDAR_CODIGO:([\w\-\.]+)/);
         const filename = filenameMatch
           ? filenameMatch[1]
           : `generated_test_${this.sessionId}_${i + 1}.spec.ts`;
