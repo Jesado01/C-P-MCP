@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getWebSocketService, AgentMessage } from '@/services/websocket';
 import { getApiService, AgentStatus } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -20,32 +20,48 @@ export const useAgent = () => {
   const apiService = useRef(getApiService());
   const { toast } = useToast();
   const messageCallbacksRef = useRef<((message: AgentMessage) => void)[]>([]);
+  const hasShownConnectionToast = useRef(false);
 
-  // Check API health and agent status on mount
+  // Check API health and agent status ONLY on mount (no polling)
   useEffect(() => {
+    let mounted = true;
+
     const checkStatus = async () => {
       try {
-        await apiService.current.checkHealth();
         const status = await apiService.current.getStatus();
-        setAgentStatus(status);
-        setIsAgentRunning(status.is_running);
+        if (mounted) {
+          setAgentStatus(status);
+          setIsAgentRunning(status.is_running);
+        }
       } catch (error) {
         console.error('Failed to check API status:', error);
-        toast({
-          title: 'Error de conexión',
-          description: 'No se pudo conectar con la API. Asegúrate de que el servidor esté corriendo.',
-          variant: 'destructive',
-        });
+        // Only show error once
+        if (mounted && !hasShownConnectionToast.current) {
+          toast({
+            title: 'Error de conexión',
+            description: 'No se pudo conectar con la API.',
+            variant: 'destructive',
+          });
+          hasShownConnectionToast.current = true;
+        }
       }
     };
 
     checkStatus();
 
-    // Poll status every 5 seconds
-    const interval = setInterval(checkStatus, 5000);
+    // Only poll if agent is NOT running (to detect when it starts externally)
+    // Polling every 30 seconds instead of 5
+    const interval = setInterval(() => {
+      if (!isAgentRunning && mounted) {
+        checkStatus();
+      }
+    }, 30000);
 
-    return () => clearInterval(interval);
-  }, [toast]);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [isAgentRunning, toast]);
 
   // Connect WebSocket when agent is running
   useEffect(() => {
@@ -54,10 +70,14 @@ export const useAgent = () => {
         .connect()
         .then(() => {
           setIsConnected(true);
-          toast({
-            title: 'Conectado',
-            description: 'Conexión WebSocket establecida con éxito.',
-          });
+          // Only show toast once
+          if (!hasShownConnectionToast.current) {
+            toast({
+              title: 'Conectado',
+              description: 'WebSocket conectado.',
+            });
+            hasShownConnectionToast.current = true;
+          }
 
           // Register all pending callbacks
           messageCallbacksRef.current.forEach(callback => {
@@ -66,11 +86,6 @@ export const useAgent = () => {
         })
         .catch((error) => {
           console.error('WebSocket connection failed:', error);
-          toast({
-            title: 'Error de WebSocket',
-            description: 'No se pudo establecer la conexión WebSocket.',
-            variant: 'destructive',
-          });
         });
     }
 
@@ -94,7 +109,7 @@ export const useAgent = () => {
           description: result.message,
         });
 
-        // Wait a bit for the agent to initialize
+        // Wait for agent to initialize
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Refresh status
@@ -146,10 +161,7 @@ export const useAgent = () => {
       }
 
       try {
-        // Send via REST API
         await apiService.current.sendMessage(content);
-
-        // WebSocket will receive the response automatically
       } catch (error) {
         console.error('Failed to send message:', error);
         throw error;
@@ -172,7 +184,8 @@ export const useAgent = () => {
     };
   }, [isConnected]);
 
-  return {
+  // Memoize return value to prevent re-renders
+  return useMemo(() => ({
     isConnected,
     isAgentRunning,
     isInitializing,
@@ -181,5 +194,5 @@ export const useAgent = () => {
     stopAgent,
     sendMessage,
     onMessage,
-  };
+  }), [isConnected, isAgentRunning, isInitializing, agentStatus, startAgent, stopAgent, sendMessage, onMessage]);
 };
