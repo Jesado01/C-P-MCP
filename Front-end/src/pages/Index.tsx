@@ -75,13 +75,12 @@ const Index = () => {
           break;
 
         case 'tool_use':
-          // Show tool usage
-          const toolMessage = `🔧 **Usando herramienta:** ${message.tool}\n\`\`\`json\n${JSON.stringify(message.args, null, 2)}\n\`\`\``;
-          addMessage({ role: 'assistant', content: toolMessage });
+          // Log tool usage to console only (don't show in chat)
+          console.log('[Tool Use]:', message.tool, message.args);
           break;
 
         case 'tool_result':
-          // Tool result (optional: show or skip)
+          // Log tool result to console only (don't show in chat)
           console.log('[Tool Result]:', message.tool, message.result);
           break;
 

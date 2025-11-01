@@ -114,7 +114,7 @@ class ClaudePlaywrightAgent {
         }
         this.mcpProcess.stdout.removeListener('data', onData);
         reject(new Error('MCP timeout'));
-      }, 30000);
+      }, 90000); // Increased to 90 seconds for Playwright browser initialization
 
       const onData = (data) => {
         const chunk = data.toString();
