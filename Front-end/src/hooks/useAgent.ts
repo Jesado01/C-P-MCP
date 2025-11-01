@@ -65,46 +65,57 @@ export const useAgent = () => {
 
   // Connect WebSocket when agent is running
   useEffect(() => {
-    let connectAttempted = false;
-
-    if (isAgentRunning && !isConnected && !connectAttempted) {
-      connectAttempted = true;
-
-      // Wait a bit for the agent to fully initialize
-      const connectTimer = setTimeout(() => {
-        wsService.current
-          .connect()
-          .then(() => {
-            setIsConnected(true);
-            // Only show toast once
-            if (!hasShownConnectionToast.current) {
-              toast({
-                title: 'Conectado',
-                description: 'WebSocket conectado.',
-              });
-              hasShownConnectionToast.current = true;
-            }
-
-            // Register all pending callbacks
-            messageCallbacksRef.current.forEach(callback => {
-              wsService.current.onMessage(callback);
-            });
-          })
-          .catch((error) => {
-            console.error('WebSocket connection failed:', error);
-            // Don't retry here - let the reconnect logic handle it
-          });
-      }, 3000); // Wait 3 seconds for agent to be fully ready
-
-      return () => {
-        clearTimeout(connectTimer);
-        if (wsService.current.isConnected()) {
-          wsService.current.disconnect();
-          setIsConnected(false);
-        }
-      };
+    if (!isAgentRunning) {
+      // Agent stopped - disconnect WebSocket
+      if (wsService.current.isConnected()) {
+        console.log('[useAgent] Agent stopped, disconnecting WebSocket');
+        wsService.current.disconnect();
+        setIsConnected(false);
+      }
+      return;
     }
-  }, [isAgentRunning, isConnected, toast]);
+
+    // Agent is running - connect if not already connected
+    if (isConnected) {
+      console.log('[useAgent] Already connected, skipping connection attempt');
+      return; // Already connected, nothing to do
+    }
+
+    console.log('[useAgent] Scheduling WebSocket connection in 3 seconds...');
+
+    // Wait for agent to fully initialize before connecting
+    const connectTimer = setTimeout(() => {
+      console.log('[useAgent] Attempting WebSocket connection...');
+      wsService.current
+        .connect()
+        .then(() => {
+          console.log('[useAgent] WebSocket connected successfully');
+          setIsConnected(true);
+
+          // Only show toast once
+          if (!hasShownConnectionToast.current) {
+            toast({
+              title: 'Conectado',
+              description: 'WebSocket conectado.',
+            });
+            hasShownConnectionToast.current = true;
+          }
+
+          // Register all pending callbacks
+          messageCallbacksRef.current.forEach(callback => {
+            wsService.current.onMessage(callback);
+          });
+        })
+        .catch((error) => {
+          console.error('[useAgent] WebSocket connection failed:', error);
+        });
+    }, 3000); // Wait 3 seconds for agent to be fully ready
+
+    return () => {
+      console.log('[useAgent] Cleaning up connection timer');
+      clearTimeout(connectTimer);
+    };
+  }, [isAgentRunning, isConnected]); // Removed 'toast' from dependencies
 
   const startAgent = useCallback(async () => {
     setIsInitializing(true);

@@ -36,17 +36,25 @@ export class WebSocketService {
     return new Promise((resolve, reject) => {
       // Prevent multiple simultaneous connection attempts
       if (this.isConnecting) {
+        console.log('[WebSocket] Connection already in progress, rejecting');
         reject(new Error('Connection already in progress'));
         return;
       }
 
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        console.log('[WebSocket] Already connected, resolving immediately');
+        resolve();
+        return;
+      }
+
       try {
+        console.log('[WebSocket] Starting connection to', this.url);
         this.isConnecting = true;
         this.shouldReconnect = true;
         this.ws = new WebSocket(this.url);
 
         this.ws.onopen = () => {
-          console.log('[WebSocket] Connected to Claude Agent API');
+          console.log('[WebSocket] ✅ Connected to Claude Agent API');
           this.reconnectAttempts = 0;
           this.isConnecting = false;
           resolve();
@@ -55,7 +63,7 @@ export class WebSocketService {
         this.ws.onmessage = (event) => {
           try {
             const message: AgentMessage = JSON.parse(event.data);
-            console.log('[WebSocket] Received:', message.type, message);
+            console.log('[WebSocket] Received:', message.type);
 
             // Notify all callbacks
             this.messageCallbacks.forEach(callback => callback(message));
@@ -65,21 +73,26 @@ export class WebSocketService {
         };
 
         this.ws.onerror = (error) => {
-          console.error('[WebSocket] Error:', error);
+          console.error('[WebSocket] ❌ Error:', error);
           this.isConnecting = false;
           reject(error);
         };
 
-        this.ws.onclose = () => {
-          console.log('[WebSocket] Disconnected');
+        this.ws.onclose = (event) => {
+          console.log(`[WebSocket] 🔌 Connection closed (code: ${event.code}, reason: ${event.reason || 'none'})`);
           this.isConnecting = false;
+          this.ws = null;
 
           // Only reconnect if not intentionally disconnected
           if (this.shouldReconnect) {
+            console.log('[WebSocket] Will attempt reconnect (shouldReconnect=true)');
             this.attemptReconnect();
+          } else {
+            console.log('[WebSocket] Not reconnecting (shouldReconnect=false)');
           }
         };
       } catch (error) {
+        this.isConnecting = false;
         reject(error);
       }
     });
@@ -129,12 +142,17 @@ export class WebSocketService {
   }
 
   disconnect() {
+    console.log('[WebSocket] disconnect() called');
+    console.trace('[WebSocket] Disconnect stack trace:');
     this.shouldReconnect = false;
     this.reconnectAttempts = 0;
 
     if (this.ws) {
+      console.log('[WebSocket] Closing WebSocket connection');
       this.ws.close();
       this.ws = null;
+    } else {
+      console.log('[WebSocket] No active connection to close');
     }
   }
 
