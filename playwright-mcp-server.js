@@ -34,6 +34,12 @@ class SimplePlaywrightServer {
   async getText(selector) {
     await this.ensureBrowser();
     try {
+      // Wait for the selector to be visible (important for SPA apps)
+      await this.page.waitForSelector(selector, { state: 'visible', timeout: 10000 });
+
+      // Give a small delay for JS to fully render
+      await this.page.waitForTimeout(500);
+
       const text = await this.page.textContent(selector, { timeout: 5000 });
       return { content: [{ type: 'text', text: text || '' }] };
     } catch (e) {
