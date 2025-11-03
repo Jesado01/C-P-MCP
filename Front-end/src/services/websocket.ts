@@ -14,6 +14,8 @@ export interface AgentMessage {
   error?: string;
   hasCode?: boolean;
   savedFiles?: string[];
+  exitCode?: number;
+  output?: string;
 }
 
 export type MessageCallback = (message: AgentMessage) => void;

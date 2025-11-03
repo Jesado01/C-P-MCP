@@ -15,6 +15,15 @@ export interface AgentStatus {
   pid: number | null;
 }
 
+export interface TestResult {
+  status: string;
+  exitCode: number;
+  output: string;
+  error: string;
+  filepath: string;
+  timestamp: string;
+}
+
 export class ApiService {
   private baseUrl: string;
 
@@ -89,6 +98,22 @@ export class ApiService {
 
     if (!response.ok) {
       throw new Error(`API health check failed: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async runTest(filepath: string): Promise<TestResult> {
+    const response = await fetch(`${this.baseUrl}/api/run-test`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ filepath }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to run test: ${response.statusText}`);
     }
 
     return response.json();

@@ -265,6 +265,9 @@ agent_manager = AgentManager()
 class MessageRequest(BaseModel):
     message: str
 
+class RunTestRequest(BaseModel):
+    filepath: str
+
 class StatusResponse(BaseModel):
     is_running: bool
     connected_clients: int
@@ -314,6 +317,61 @@ async def restart_agent():
     await asyncio.sleep(1)
     result = await agent_manager.start()
     return result
+
+@app.post("/api/run-test")
+async def run_test(request: RunTestRequest):
+    """Ejecuta una prueba de Playwright"""
+    try:
+        # Get project root directory
+        api_dir = os.path.dirname(__file__)
+        project_root = os.path.dirname(api_dir)
+
+        # Validate that the test file exists
+        test_path = os.path.join(project_root, request.filepath)
+        if not os.path.exists(test_path):
+            return {
+                "status": "error",
+                "message": f"Test file not found: {request.filepath}",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        # Run playwright test
+        process = await asyncio.create_subprocess_exec(
+            'npx', 'playwright', 'test', request.filepath,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=project_root
+        )
+
+        stdout, stderr = await process.communicate()
+
+        output = stdout.decode('utf-8') if stdout else ''
+        error = stderr.decode('utf-8') if stderr else ''
+
+        # Broadcast test results to WebSocket clients
+        await agent_manager.broadcast({
+            "type": "test_result",
+            "filepath": request.filepath,
+            "exitCode": process.returncode,
+            "output": output,
+            "error": error,
+            "timestamp": datetime.now().isoformat()
+        })
+
+        return {
+            "status": "completed" if process.returncode == 0 else "failed",
+            "exitCode": process.returncode,
+            "output": output,
+            "error": error,
+            "filepath": request.filepath,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
 # WebSocket
 @app.websocket("/ws")

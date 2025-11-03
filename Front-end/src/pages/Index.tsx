@@ -1,21 +1,25 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useChatStore } from '@/store/chatStore';
 import { ChatMessage } from '@/components/ChatMessage';
 import { ChatInput } from '@/components/ChatInput';
 import { QuickActions } from '@/components/QuickActions';
 import { SettingsModal } from '@/components/SettingsModal';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
-import { Bot, Loader2, Power, PowerOff } from 'lucide-react';
+import { Bot, Loader2, Power, PowerOff, Play } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAgent } from '@/hooks/useAgent';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AgentMessage } from '@/services/websocket';
+import { getApiService } from '@/services/api';
 
 const Index = () => {
   const { messages, isLoading, addMessage, setLoading } = useChatStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const [savedTestFiles, setSavedTestFiles] = useState<string[]>([]);
+  const [runningTest, setRunningTest] = useState(false);
+  const apiService = useRef(getApiService());
   const {
     isConnected,
     isAgentRunning,
@@ -94,10 +98,24 @@ const Index = () => {
           break;
 
         case 'file_saved':
+          // Add to saved test files list
+          if (message.filepath && !savedTestFiles.includes(message.filepath)) {
+            setSavedTestFiles(prev => [...prev, message.filepath!]);
+          }
           toast({
             title: '💾 Archivo guardado',
             description: message.filepath,
           });
+          break;
+
+        case 'test_result':
+          // Show test results in chat
+          const resultMessage = message.exitCode === 0
+            ? `✅ **Pruebas ejecutadas exitosamente**\n\n**Archivo:** ${message.filepath}\n\n**Output:**\n\`\`\`\n${message.output}\n\`\`\``
+            : `❌ **Pruebas fallaron**\n\n**Archivo:** ${message.filepath}\n\n**Error:**\n\`\`\`\n${message.error || message.output}\n\`\`\``;
+
+          addMessage({ role: 'assistant', content: resultMessage });
+          setRunningTest(false);
           break;
 
         case 'error':
@@ -123,7 +141,7 @@ const Index = () => {
     });
 
     return unsubscribe;
-  }, [isConnected, addMessage, setLoading, onMessage, toast]);
+  }, [isConnected, addMessage, setLoading, onMessage, toast, savedTestFiles]);
 
   const handleSendMessage = async (content: string) => {
     if (!isAgentRunning) {
@@ -176,6 +194,37 @@ const Index = () => {
     }
   };
 
+  const handleRunTests = async () => {
+    if (savedTestFiles.length === 0) {
+      toast({
+        title: 'No hay pruebas',
+        description: 'No se han generado pruebas todavía.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setRunningTest(true);
+    toast({
+      title: '▶️ Ejecutando pruebas',
+      description: `Ejecutando ${savedTestFiles.length} archivo(s)...`,
+    });
+
+    try {
+      // Run the most recent test file
+      const latestTest = savedTestFiles[savedTestFiles.length - 1];
+      await apiService.current.runTest(latestTest);
+    } catch (error) {
+      console.error('Failed to run tests:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron ejecutar las pruebas.',
+        variant: 'destructive',
+      });
+      setRunningTest(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
@@ -206,6 +255,27 @@ const Index = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {savedTestFiles.length > 0 && (
+              <Button
+                onClick={handleRunTests}
+                disabled={runningTest || !isAgentRunning}
+                variant="outline"
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+              >
+                {runningTest ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Ejecutando...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Ejecutar Pruebas ({savedTestFiles.length})
+                  </>
+                )}
+              </Button>
+            )}
             <Button
               onClick={handleToggleAgent}
               disabled={isInitializing}
