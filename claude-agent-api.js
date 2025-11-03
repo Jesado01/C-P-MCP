@@ -369,18 +369,30 @@ Responde en español.`,
       for (let i = 0; i < matches.length; i++) {
         const code = matches[i][1];
 
-        // Try to get filename from GUARDAR_CODIGO marker
-        const filenameMatch = message.match(/GUARDAR_CODIGO:([\w\-\.]+)/);
-
-        // If no marker, try to infer from code content
+        // Auto-detect filename from THIS code block's describe()
         let filename;
-        if (filenameMatch) {
-          filename = filenameMatch[1];
+        const describeMatch = code.match(/describe\(['"](.*?)['"],/);
+
+        if (describeMatch) {
+          // Extract test suite name from describe block
+          const suiteName = describeMatch[1];
+
+          // Convert to filename (e.g., "Saucedemo - Login Tests" -> "saucedemo-login-tests.spec.ts")
+          filename = suiteName
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')  // Replace non-alphanumeric with dashes
+            .replace(/^-+|-+$/g, '')       // Remove leading/trailing dashes
+            + '.spec.ts';
+
+          if (!this.isApiMode) {
+            console.log(`[DEBUG] Auto-detected filename from describe: ${filename}`);
+          }
         } else {
-          // Try to detect test name from describe blocks
-          const describeMatch = code.match(/describe\(['"](.+?)['"],/);
-          const testName = describeMatch ? describeMatch[1].toLowerCase().replace(/[^a-z0-9]+/g, '-') : null;
-          filename = testName ? `${testName}.spec.ts` : `generated_test_${this.sessionId}_${i + 1}.spec.ts`;
+          // Fallback to session-based naming
+          filename = `generated_test_${this.sessionId}_${i + 1}.spec.ts`;
+          if (!this.isApiMode) {
+            console.log(`[DEBUG] Using fallback filename: ${filename}`);
+          }
         }
 
         const filepath = path.join(__dirname, 'tests', filename);
