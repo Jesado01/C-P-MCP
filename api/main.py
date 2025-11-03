@@ -267,6 +267,7 @@ class MessageRequest(BaseModel):
 
 class RunTestRequest(BaseModel):
     filepath: str
+    headed: bool = False
 
 class StatusResponse(BaseModel):
     is_running: bool
@@ -335,9 +336,16 @@ async def run_test(request: RunTestRequest):
                 "timestamp": datetime.now().isoformat()
             }
 
+        # Build command with optional --headed flag
+        cmd = ['npx', 'playwright', 'test', request.filepath]
+        if request.headed:
+            cmd.append('--headed')
+
+        print(f"[TEST] Running: {' '.join(cmd)}")
+
         # Run playwright test
         process = await asyncio.create_subprocess_exec(
-            'npx', 'playwright', 'test', request.filepath,
+            *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=project_root
