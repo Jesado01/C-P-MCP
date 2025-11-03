@@ -349,17 +349,39 @@ Responde en español.`,
   }
 
   async saveGeneratedCode(message) {
+    // First try to find properly closed code blocks
     const codeBlockRegex = /```(?:typescript|javascript|ts|js)\n([\s\S]*?)```/g;
-    const matches = [...message.matchAll(codeBlockRegex)];
+    let matches = [...message.matchAll(codeBlockRegex)];
+
+    // If no closed blocks found, try to find unclosed blocks (truncated messages)
+    if (matches.length === 0) {
+      const unclosedRegex = /```(?:typescript|javascript|ts|js)\n([\s\S]+)$/;
+      const unclosedMatch = message.match(unclosedRegex);
+      if (unclosedMatch) {
+        if (!this.isApiMode) {
+          console.log('[DEBUG] Found unclosed code block (message may be truncated)');
+        }
+        matches = [unclosedMatch];
+      }
+    }
 
     if (matches.length > 0) {
       for (let i = 0; i < matches.length; i++) {
         const code = matches[i][1];
-        // Fixed: Only capture valid filename characters (no markdown asterisks)
+
+        // Try to get filename from GUARDAR_CODIGO marker
         const filenameMatch = message.match(/GUARDAR_CODIGO:([\w\-\.]+)/);
-        const filename = filenameMatch
-          ? filenameMatch[1]
-          : `generated_test_${this.sessionId}_${i + 1}.spec.ts`;
+
+        // If no marker, try to infer from code content
+        let filename;
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        } else {
+          // Try to detect test name from describe blocks
+          const describeMatch = code.match(/describe\(['"](.+?)['"],/);
+          const testName = describeMatch ? describeMatch[1].toLowerCase().replace(/[^a-z0-9]+/g, '-') : null;
+          filename = testName ? `${testName}.spec.ts` : `generated_test_${this.sessionId}_${i + 1}.spec.ts`;
+        }
 
         const filepath = path.join(__dirname, 'tests', filename);
 
